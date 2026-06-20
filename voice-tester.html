@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voice Tester</title>
+<style>
+  body{
+    margin:0; padding:20px; background:#14181F; color:#F4F1EA;
+    font-family:-apple-system, system-ui, sans-serif;
+  }
+  h1{ font-size:22px; margin-bottom:6px; }
+  p.sub{ color:#9AA1AE; font-size:14px; margin-top:0; margin-bottom:20px; }
+  .voice-card{
+    background:#1C212B; border:1px solid #2A313D; border-radius:14px;
+    padding:14px 16px; margin-bottom:10px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .voice-info{ flex:1; }
+  .voice-name{ font-weight:600; font-size:16px; }
+  .voice-lang{ font-size:12px; color:#9AA1AE; margin-top:2px; }
+  .play-btn{
+    background:#7FA37A; color:#102015; border:none; border-radius:10px;
+    padding:10px 16px; font-weight:700; font-size:14px; cursor:pointer; flex-shrink:0;
+  }
+  .play-btn:active{ transform:scale(0.96); }
+  .rate-row{
+    margin: 18px 0 24px; padding:14px 16px; background:#1C212B; border:1px solid #2A313D; border-radius:14px;
+  }
+  .rate-row label{ font-size:13px; color:#9AA1AE; display:block; margin-bottom:8px; }
+  .rate-row input[type=range]{ width:100%; }
+  .rate-val{ font-size:14px; font-weight:600; color:#7FA37A; }
+  .empty{ color:#9AA1AE; font-size:14px; padding:20px 0; }
+</style>
+</head>
+<body>
+  <h1>Voice Tester</h1>
+  <p class="sub">Tap "Play sample" next to each voice to hear it read a PT instruction. Note which one you like best.</p>
+
+  <div class="rate-row">
+    <label>Speaking rate (try adjusting, then tap Play again): <span class="rate-val" id="rateVal">0.85</span></label>
+    <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.85">
+  </div>
+
+  <div id="voiceList"><div class="empty">Loading available voices…</div></div>
+
+<script>
+const SAMPLE_TEXT = "Glute Bridge. Step 1: Lie on your back, knees bent, feet flat on the floor. Do 3 sets of 12 reps.";
+
+function renderVoices(){
+  const voices = window.speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+  const list = document.getElementById('voiceList');
+  if(voices.length === 0){
+    list.innerHTML = '<div class="empty">No English voices found yet — try tapping anywhere on the page once, then reload.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  voices.forEach((voice, i)=>{
+    const card = document.createElement('div');
+    card.className = 'voice-card';
+    card.innerHTML = `
+      <div class="voice-info">
+        <div class="voice-name">${voice.name}</div>
+        <div class="voice-lang">${voice.lang}${voice.default ? ' · default' : ''}</div>
+      </div>
+      <button class="play-btn" data-idx="${i}">Play sample</button>
+    `;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('.play-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.idx);
+      const voice = voices[idx];
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(SAMPLE_TEXT);
+      utter.voice = voice;
+      utter.rate = parseFloat(document.getElementById('rateSlider').value);
+      window.speechSynthesis.speak(utter);
+    });
+  });
+}
+
+document.getElementById('rateSlider').addEventListener('input', (e)=>{
+  document.getElementById('rateVal').textContent = e.target.value;
+});
+
+// Voice list can load asynchronously on first page load.
+if('speechSynthesis' in window){
+  renderVoices();
+  window.speechSynthesis.onvoiceschanged = renderVoices;
+}else{
+  document.getElementById('voiceList').innerHTML = '<div class="empty">Speech synthesis not supported in this browser.</div>';
+}
+</script>
+</body>
+</html>
