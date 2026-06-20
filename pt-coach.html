@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>PT Coach</title>
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --bg: #14181F;
+    --bg-raised: #1C212B;
+    --text: #F4F1EA;
+    --text-dim: #9AA1AE;
+    --accent-go: #7FA37A;
+    --accent-go-soft: rgba(127,163,122,0.18);
+    --accent-hold: #D9A14A;
+    --accent-hold-soft: rgba(217,161,74,0.16);
+    --accent-stop: #B5615A;
+    --accent-stop-soft: rgba(181,97,90,0.16);
+    --line: #2A313D;
+    --radius: 22px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    overscroll-behavior:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  @font-face{
+    font-family:'Fredoka';
+    src: local('Fredoka');
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .screen{
+    flex:1; display:none; flex-direction:column; min-height:0;
+    animation: fadeIn .25s ease;
+  }
+  .screen.active{display:flex;}
+  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+
+  /* ---------- shared chrome ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px 10px;
+  }
+  .topbar h1{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:22px; font-weight:600; margin:0; letter-spacing:-0.01em;
+  }
+  .version-tag{
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size:12px; font-weight:700; color:var(--accent-go);
+    background:var(--accent-go-soft); border:1px solid var(--accent-go);
+    border-radius:8px; padding:3px 8px; vertical-align:middle;
+    letter-spacing:0.01em;
+  }
+  .iconbtn{
+    width:40px; height:40px; border-radius:12px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text); font-size:18px; cursor:pointer;
+  }
+  .iconbtn:active{transform:scale(0.94);}
+
+  /* ---------- HOME ---------- */
+  #home{padding: 4px 20px 20px;}
+  .home-hero{
+    padding: 28px 4px 18px;
+  }
+  .home-hero .eyebrow{
+    color:var(--accent-go); font-size:13px; font-weight:600;
+    letter-spacing:0.08em; text-transform:uppercase; margin:0 0 8px;
+  }
+  .home-hero h2{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:34px; line-height:1.08; margin:0; font-weight:600;
+  }
+  .routine-list{
+    display:flex; flex-direction:column; gap:12px; margin-top:18px;
+    overflow-y:auto; padding-bottom: 12px;
+  }
+  .routine-card{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding:18px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer;
+  }
+  .routine-card:active{transform:scale(0.985);}
+  .routine-card .rname{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:19px; font-weight:600;
+  }
+  .routine-card .rcount{
+    color:var(--text-dim); font-size:14px; margin-top:3px;
+  }
+  .routine-card .arrow{
+    color:var(--accent-go); font-size:22px;
+  }
+  .bottom-row{
+    display:flex; gap:12px; padding: 12px 20px 8px;
+  }
+  .ghost-btn{
+    flex:1; background:transparent; border:1px solid var(--line);
+    color:var(--text-dim); border-radius:14px; padding:13px;
+    font-size:15px; font-weight:600; text-align:center; cursor:pointer;
+  }
+  .ghost-btn:active{background:var(--bg-raised);}
+
+  /* ---------- SESSION ---------- */
+  #session{
+    padding: 18px 22px 22px;
+    justify-content: space-between;
+    overflow-y: auto;
+  }
+  .sess-top{
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .sess-progress{
+    color:var(--text-dim); font-size:14px; font-weight:600; letter-spacing:0.02em;
+  }
+  .sess-body{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    text-align:center; padding: 10px 0;
+  }
+  .ex-name{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size: 40px; line-height:1.08; font-weight:600;
+    margin: 6px 0 22px;
+  }
+  .stat-row{
+    display:flex; gap:10px; justify-content:center; margin-bottom:26px; flex-wrap:wrap;
+  }
+  .stat-pill{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:14px; padding:10px 18px;
+    font-size:16px; font-weight:600;
+  }
+  .stat-pill .stat-label{
+    display:block; font-size:11px; font-weight:600; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:2px;
+  }
+  .steps-box{
+    text-align:left; background:var(--bg-raised); border:1px solid var(--line);
+    border-radius: var(--radius); padding:20px 22px; margin: 0 auto;
+    max-width: 480px; width:100%;
+  }
+  .steps-box ol{
+    margin:0; padding-left:22px; font-size:17px; line-height:1.55;
+  }
+  .steps-box li{margin-bottom:8px;}
+  .steps-box li:last-child{margin-bottom:0;}
+
+  .sess-bottom{
+    display:flex; flex-direction:column; align-items:center; gap:14px;
+    padding-top: 16px;
+  }
+  .speak-indicator{
+    display:flex; gap:6px; height:18px; align-items:center;
+  }
+  .speak-dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--line); transition: background .2s ease;
+  }
+  .speak-indicator.active .speak-dot{
+    background: var(--accent-hold);
+    animation: speakPulse 1s ease-in-out infinite;
+  }
+  .speak-indicator.active .speak-dot:nth-child(2){ animation-delay: 0.15s; }
+  .speak-indicator.active .speak-dot:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes speakPulse{
+    0%, 100%{ transform: scale(1); opacity:0.5; }
+    50%{ transform: scale(1.4); opacity:1; }
+  }
+  .mic-status{
+    font-size:14px; color:var(--text-dim); font-weight:600; min-height:18px;
+  }
+  .heard-chip{
+    font-size:13px; color:var(--accent-go); font-weight:600;
+    min-height:16px;
+  }
+  .sess-controls{
+    display:flex; gap:10px; width:100%; max-width:480px;
+  }
+  .control-btn{
+    flex:1; padding:14px; border-radius:14px; text-align:center;
+    font-size:15px; font-weight:600; cursor:pointer; border:1px solid var(--line);
+    background:var(--bg-raised); color:var(--text);
+  }
+  .control-btn:active{transform:scale(0.97);}
+  .control-btn.next{
+    background:var(--accent-go-soft); border-color:var(--accent-go); color:var(--accent-go);
+  }
+  .control-btn.stop{
+    background:var(--accent-stop-soft); border-color:var(--accent-stop); color:var(--accent-stop);
+    flex: 0 0 84px;
+  }
+  .tap-hint{
+    font-size:12px; color:var(--text-dim); text-align:center; padding-top:2px;
+  }
+
+  /* ---------- PICKER MODAL ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal-backdrop.active{display:flex;}
+  .modal-sheet{
+    background:var(--bg-raised); width:100%; max-width:560px;
+    border-radius: 24px 24px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+    max-height:75vh; overflow-y:auto;
+    border-top:1px solid var(--line);
+  }
+  .modal-sheet h3{
+    font-family:'Fredoka', system-ui, sans-serif; font-size:20px; margin:0 0 14px;
+  }
+
+  /* ---------- MANAGE ---------- */
+  #manage{padding: 4px 20px 20px;}
+  .tabs{display:flex; gap:8px; padding: 0 0 14px;}
+  .tab{
+    flex:1; text-align:center; padding:10px; border-radius:12px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text-dim); font-weight:600; font-size:14px; cursor:pointer;
+  }
+  .tab.active{ color:var(--bg); background:var(--accent-go); border-color:var(--accent-go); }
+  .list-scroll{ overflow-y:auto; flex:1; }
+  .item-card{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:16px;
+    padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .item-card .iname{font-weight:600; font-size:16px;}
+  .item-card .isub{color:var(--text-dim); font-size:13px; margin-top:2px;}
+  .item-actions{display:flex; gap:8px; flex-shrink:0;}
+  .small-icon{
+    width:32px; height:32px; border-radius:9px; background:var(--bg);
+    border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:pointer; color:var(--text-dim);
+  }
+  .fab{
+    position:absolute; right:24px; bottom:24px;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--accent-go); color:#102015; font-size:26px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35); cursor:pointer; z-index:5;
+  }
+
+  /* ---------- FORM ---------- */
+  #editForm{padding: 4px 20px 20px;}
+  .form-scroll{ overflow-y:auto; flex:1; padding-bottom: 10px;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-size:13px; font-weight:600; color:var(--text-dim);
+    margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .field input, .field textarea{
+    width:100%; background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text); border-radius:12px; padding:12px 14px; font-size:16px;
+    font-family:inherit;
+  }
+  .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
+  .row3{display:flex; gap:10px;}
+  .row3 .field{flex:1;}
+  .step-row{display:flex; gap:8px; margin-bottom:8px; align-items:flex-start;}
+  .step-row input{flex:1;}
+  .save-btn{
+    background:var(--accent-go); color:#102015; border:none; border-radius:14px;
+    padding:15px; font-size:16px; font-weight:700; text-align:center; cursor:pointer;
+    margin-top: 6px;
+  }
+  .checklist{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .check-card{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .check-card.checked{ border-color:var(--accent-go); background:var(--accent-go-soft); }
+  .checkbox{
+    width:22px; height:22px; border-radius:7px; border:2px solid var(--line);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .check-card.checked .checkbox{ background:var(--accent-go); border-color:var(--accent-go); color:#102015; }
+  .empty-state{
+    text-align:center; color:var(--text-dim); padding: 60px 20px; font-size:15px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HOME -->
+  <div class="screen active" id="home">
+    <div class="topbar">
+      <h1>PT Coach <span id="versionTag" class="version-tag"></span></h1>
+      <div class="iconbtn" onclick="goTo('manage')">⚙︎</div>
+    </div>
+    <div class="home-hero">
+      <p class="eyebrow">Today</p>
+      <h2>Which routine<br/>are we doing?</h2>
+    </div>
+    <div class="routine-list" id="routineList"></div>
+  </div>
+
+  <!-- SESSION -->
+  <div class="screen" id="session">
+    <div class="sess-top">
+      <div class="sess-progress" id="sessProgress">Exercise 1 of 5</div>
+      <div class="iconbtn" onclick="endSession()">✕</div>
+    </div>
+    <div class="sess-body" onclick="manualNext()">
+      <div class="ex-name" id="exName">Exercise name</div>
+      <div class="stat-row" id="exStats"></div>
+      <div class="steps-box" onclick="event.stopPropagation()">
+        <ol id="exSteps"></ol>
+      </div>
+      <div class="tap-hint" style="margin-top:18px;">Tap anywhere above to move to the next exercise</div>
+    </div>
+    <div class="sess-bottom">
+      <div class="speak-indicator" id="speakIndicator">
+        <div class="speak-dot"></div>
+        <div class="speak-dot"></div>
+        <div class="speak-dot"></div>
+      </div>
+      <div class="mic-status" id="micStatus">Tap anywhere when you're ready</div>
+      <div class="sess-controls">
+        <div class="control-btn" onclick="repeatCurrent()">Repeat</div>
+        <div class="control-btn next" onclick="manualNext()">Next →</div>
+        <div class="control-btn stop" onclick="endSession()">End</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANAGE -->
+  <div class="screen" id="manage" style="position:relative;">
+    <div class="topbar">
+      <div class="iconbtn" onclick="goTo('home')">‹</div>
+      <h1>Manage</h1>
+      <div style="width:40px;"></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" id="tabExercises" onclick="switchManageTab('exercises')">Exercises</div>
+      <div class="tab" id="tabRoutines" onclick="switchManageTab('routines')">Routines</div>
+    </div>
+    <div class="list-scroll" id="manageList"></div>
+    <div class="fab" onclick="addNew()">+</div>
+  </div>
+
+  <!-- EDIT FORM (exercise or routine) -->
+  <div class="screen" id="editForm">
+    <div class="topbar">
+      <div class="iconbtn" onclick="goTo('manage')">‹</div>
+      <h1 id="formTitle">Edit exercise</h1>
+      <div class="iconbtn" id="deleteBtn" onclick="deleteCurrentItem()">🗑</div>
+    </div>
+    <div class="form-scroll" id="formBody"></div>
+  </div>
+
+</div>
+
+<script>
+/* ===================== VERSION ===================== */
+// Bump this string every time a new version is shipped, so it's easy to
+// confirm laptop and iPhone (or any two devices) are running the same build.
+const APP_VERSION = 'v7';
+
+/* ===================== GLOBAL ERROR DISPLAY ===================== */
+// Shows any uncaught JS error directly on screen as a visible banner.
+// This lets us diagnose issues on a phone with no access to dev tools.
+function showFatalError(message, source){
+  let banner = document.getElementById('fatalErrorBanner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'fatalErrorBanner';
+    banner.style.position = 'fixed';
+    banner.style.top = '0';
+    banner.style.left = '0';
+    banner.style.right = '0';
+    banner.style.zIndex = '9999';
+    banner.style.background = '#B5615A';
+    banner.style.color = '#fff';
+    banner.style.padding = '14px 16px';
+    banner.style.fontFamily = 'monospace';
+    banner.style.fontSize = '12px';
+    banner.style.lineHeight = '1.5';
+    banner.style.whiteSpace = 'pre-wrap';
+    banner.style.maxHeight = '50vh';
+    banner.style.overflowY = 'auto';
+    document.body.appendChild(banner);
+  }
+  banner.textContent += 'ERROR: ' + message + (source ? ('\n  at ' + source) : '') + '\n\n';
+}
+
+window.addEventListener('error', function(e){
+  showFatalError(e.message, (e.filename || '') + ':' + (e.lineno || '?') + ':' + (e.colno || '?'));
+});
+window.addEventListener('unhandledrejection', function(e){
+  showFatalError('Unhandled promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+
+/* ===================== DATA ===================== */
+const STORAGE_KEY = 'pt_coach_data_v1';
+
+// Some browsers (especially Safari opening files via file://) can block or
+// throw on localStorage access entirely. This wrapper falls back to a plain
+// in-memory object so the app still works — it just won't persist across
+// closing the app in that specific situation.
+const safeStorage = (function(){
+  let memoryFallback = {};
+  let useMemory = false;
+  try{
+    const testKey = '__pt_coach_test__';
+    window.localStorage.setItem(testKey, '1');
+    window.localStorage.removeItem(testKey);
+  }catch(e){
+    useMemory = true;
+  }
+  return {
+    getItem(key){
+      if(useMemory) return memoryFallback.hasOwnProperty(key) ? memoryFallback[key] : null;
+      try{ return window.localStorage.getItem(key); }
+      catch(e){ return memoryFallback.hasOwnProperty(key) ? memoryFallback[key] : null; }
+    },
+    setItem(key, value){
+      if(useMemory){ memoryFallback[key] = value; return; }
+      try{ window.localStorage.setItem(key, value); }
+      catch(e){ memoryFallback[key] = value; }
+    },
+    usingMemory(){ return useMemory; }
+  };
+})();
+
+function defaultData(){
+  return {
+    exercises: [
+      { id:'e1', name:'Glute Bridge', steps:[
+          'Lie on your back, knees bent, feet flat on the floor.',
+          'Push through your heels and lift your hips toward the ceiling.',
+          'Squeeze your glutes at the top, then lower slowly.'
+        ], sets:3, reps:12, hold:2 },
+      { id:'e2', name:'Wall Sit', steps:[
+          'Stand with your back against a wall.',
+          'Slide down until your knees are at about 90 degrees.',
+          'Hold the position, keeping your back flat against the wall.'
+        ], sets:3, reps:1, hold:30 },
+      { id:'e3', name:'Standing Calf Raise', steps:[
+          'Stand tall, holding onto a wall or chair for balance.',
+          'Rise up onto your toes as high as you can.',
+          'Hold briefly, then lower back down with control.'
+        ], sets:3, reps:15, hold:1 },
+      { id:'e4', name:'Bird Dog', steps:[
+          'Start on hands and knees, back flat.',
+          'Extend your right arm forward and left leg back, keeping hips level.',
+          'Hold, then return and switch sides.'
+        ], sets:2, reps:10, hold:3 },
+      { id:'e5', name:'Seated Hamstring Stretch', steps:[
+          'Sit on the edge of a chair, one leg extended with heel on the floor.',
+          'Sit tall and hinge forward gently from the hips.',
+          'Hold the stretch, feeling it in the back of the thigh.'
+        ], sets:2, reps:1, hold:20 }
+    ],
+    routines: [
+      { id:'r1', name:'Morning Mobility', exerciseIds:['e1','e3','e4'] },
+      { id:'r2', name:'Knee Rehab — Lower', exerciseIds:['e1','e2','e3','e5'] },
+      { id:'r3', name:'Full Routine', exerciseIds:['e1','e2','e3','e4','e5'] }
+    ]
+  };
+}
+
+let DATA = loadData();
+function loadData(){
+  try{
+    const raw = safeStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return defaultData();
+}
+function saveData(){
+  try{
+    safeStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
+  }catch(e){
+    // If even this fails, the app keeps working in-memory for this session;
+    // changes just won't be remembered after closing.
+    console.warn('Could not persist data:', e);
+  }
+}
+
+/* ===================== NAV ===================== */
+function goTo(screenId){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  if(screenId === 'home') renderHome();
+  if(screenId === 'manage') renderManageList();
+  window.scrollTo(0,0);
+}
+
+/* ===================== HOME ===================== */
+function renderHome(){
+  const versionEl = document.getElementById('versionTag');
+  if(versionEl) versionEl.textContent = APP_VERSION;
+  const list = document.getElementById('routineList');
+  list.innerHTML = '';
+  if(DATA.routines.length === 0){
+    list.innerHTML = '<div class="empty-state">No routines yet.<br>Tap the gear icon to add one.</div>';
+    return;
+  }
+  DATA.routines.forEach(r=>{
+    const card = document.createElement('div');
+    card.className = 'routine-card';
+    card.onclick = ()=> startSession(r.id);
+    card.innerHTML = `
+      <div>
+        <div class="rname">${escapeHtml(r.name)}</div>
+        <div class="rcount">${r.exerciseIds.length} exercise${r.exerciseIds.length===1?'':'s'}</div>
+      </div>
+      <div class="arrow">▶</div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+/* ===================== SESSION STATE ===================== */
+let session = null; // { routine, exercises:[...], index }
+
+function startSession(routineId){
+  const routine = DATA.routines.find(r=>r.id===routineId);
+  if(!routine) return;
+  const exercises = routine.exerciseIds.map(id=>DATA.exercises.find(e=>e.id===id)).filter(Boolean);
+  if(exercises.length===0){
+    alert('This routine has no exercises yet. Add some in Manage.');
+    return;
+  }
+  session = { routine, exercises, index:0 };
+  goTo('session');
+  unlockSpeech();
+  presentCurrentExercise();
+}
+
+function presentCurrentExercise(){
+  const ex = session.exercises[session.index];
+  document.getElementById('sessProgress').textContent =
+    `Exercise ${session.index+1} of ${session.exercises.length}`;
+  document.getElementById('exName').textContent = ex.name;
+
+  const stats = document.getElementById('exStats');
+  stats.innerHTML = '';
+  const pills = [
+    {label:'Sets', val: ex.sets},
+    {label:'Reps', val: ex.reps},
+    {label:'Hold', val: ex.hold ? ex.hold + 's' : '—'}
+  ];
+  pills.forEach(p=>{
+    const el = document.createElement('div');
+    el.className='stat-pill';
+    el.innerHTML = `<span class="stat-label">${p.label}</span>${p.val}`;
+    stats.appendChild(el);
+  });
+
+  const stepsEl = document.getElementById('exSteps');
+  stepsEl.innerHTML = '';
+  ex.steps.forEach(s=>{
+    const li = document.createElement('li');
+    li.textContent = s;
+    stepsEl.appendChild(li);
+  });
+
+  speakExercise(ex);
+}
+
+function buildSpokenText(ex){
+  let txt = `${ex.name}. `;
+  ex.steps.forEach((s,i)=>{ txt += `Step ${i+1}: ${s} `; });
+  txt += `Do ${ex.sets} sets of ${ex.reps} reps`;
+  if(ex.hold && ex.hold > 1){ txt += `, holding each for ${ex.hold} seconds`; }
+  txt += `. Tap anywhere when you're done.`;
+  return txt;
+}
+
+function repeatCurrent(){
+  const ex = session.exercises[session.index];
+  speakExercise(ex);
+}
+
+let advanceInFlight = false;
+function advanceExercise(){
+  if(!session) return;
+  if(advanceInFlight) return;
+  advanceInFlight = true;
+  if(session.index < session.exercises.length - 1){
+    session.index++;
+    presentCurrentExercise();
+  }else{
+    finishSession();
+  }
+  setTimeout(()=>{ advanceInFlight = false; }, 600);
+}
+function manualNext(){ advanceExercise(); }
+
+function finishSession(){
+  speak("Great work. That's the full routine complete.", ()=>{
+    setTimeout(()=>{ session=null; goTo('home'); }, 600);
+  });
+  document.getElementById('exName').textContent = "All done! 🎉";
+  document.getElementById('exStats').innerHTML='';
+  document.getElementById('exSteps').innerHTML='<li>Routine complete. Nice work.</li>';
+  document.getElementById('micStatus').textContent = 'Returning home...';
+  document.getElementById('sessProgress').textContent = 'Finished';
+}
+
+function endSession(){
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  session = null;
+  goTo('home');
+}
+
+/* ===================== TEXT-TO-SPEECH ===================== */
+let speechUnlocked = false;
+let cachedVoice = null;
+
+function unlockSpeech(){
+  if(speechUnlocked) return;
+  try{
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+    speechUnlocked = true;
+  }catch(e){}
+  // Voice lists load asynchronously on first use in some browsers.
+  if(window.speechSynthesis && typeof window.speechSynthesis.addEventListener === 'function'){
+    window.speechSynthesis.addEventListener('voiceschanged', ()=>{ cachedVoice = null; });
+  }
+}
+
+// Preference order: smooth, natural-sounding female voices first.
+// "Samantha" (iOS/macOS) and "Google US English" (some Android/Chrome) are
+// generally the smoothest defaults available without paid neural TTS.
+const PREFERRED_VOICE_NAMES = [
+  'Samantha',           // iOS / macOS default female voice — smoothest built-in option
+  'Siri Female',
+  'Microsoft Aria Online (Natural) - English (United States)',
+  'Microsoft Jenny Online (Natural) - English (United States)',
+  'Google US English',
+  'Karen',
+  'Moira',
+  'Tessa',
+  'Victoria'
+];
+
+function pickVoice(){
+  if(cachedVoice) return cachedVoice;
+  if(!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  if(voices.length === 0) return null;
+
+  // 1) Exact name match against preference list, in order.
+  for(const name of PREFERRED_VOICE_NAMES){
+    const match = voices.find(v => v.name === name);
+    if(match){ cachedVoice = match; return cachedVoice; }
+  }
+  // 2) Any voice whose name suggests a female English voice.
+  const femaleHint = voices.find(v =>
+    /en[-_]/i.test(v.lang) &&
+    /female|samantha|victoria|karen|moira|tessa|aria|jenny|zira|susan|allison/i.test(v.name)
+  );
+  if(femaleHint){ cachedVoice = femaleHint; return cachedVoice; }
+  // 3) Fall back to any English voice.
+  const anyEnglish = voices.find(v => /en[-_]/i.test(v.lang));
+  if(anyEnglish){ cachedVoice = anyEnglish; return cachedVoice; }
+  // 4) Last resort: whatever the browser gives us first.
+  cachedVoice = voices[0] || null;
+  return cachedVoice;
+}
+
+function setSpeakingVisual(isSpeaking){
+  const ind = document.getElementById('speakIndicator');
+  if(!ind) return;
+  ind.classList.toggle('active', isSpeaking);
+  document.getElementById('micStatus').textContent = isSpeaking
+    ? 'Speaking…'
+    : "Tap anywhere when you're ready";
+}
+
+// Small random human-like variation so the same line doesn't sound
+// like an identical recording every time it's spoken.
+function naturalRate(){
+  return 0.94 + Math.random() * 0.10;   // ~0.94 - 1.04
+}
+function naturalPitch(){
+  return 0.96 + Math.random() * 0.10;   // ~0.96 - 1.06
+}
+
+function speak(text, onEnd){
+  if(!('speechSynthesis' in window)){
+    if(onEnd) onEnd();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  const voice = pickVoice();
+  if(voice) utter.voice = voice;
+  utter.rate = naturalRate();
+  utter.pitch = naturalPitch();
+  setSpeakingVisual(true);
+  utter.onend = ()=>{
+    setSpeakingVisual(false);
+    if(onEnd) onEnd();
+  };
+  utter.onerror = ()=>{
+    setSpeakingVisual(false);
+    if(onEnd) onEnd();
+  };
+  window.speechSynthesis.speak(utter);
+}
+
+function speakExercise(ex){
+  speak(buildSpokenText(ex));
+}
+
+/* ===================== MANAGE: LIST ===================== */
+let manageTab = 'exercises';
+function switchManageTab(tab){
+  manageTab = tab;
+  document.getElementById('tabExercises').classList.toggle('active', tab==='exercises');
+  document.getElementById('tabRoutines').classList.toggle('active', tab==='routines');
+  renderManageList();
+}
+
+function renderManageList(){
+  const listEl = document.getElementById('manageList');
+  listEl.innerHTML = '';
+  if(manageTab === 'exercises'){
+    if(DATA.exercises.length===0){
+      listEl.innerHTML = '<div class="empty-state">No exercises yet.<br>Tap + to add your first one.</div>';
+      return;
+    }
+    DATA.exercises.forEach(ex=>{
+      const card = document.createElement('div');
+      card.className='item-card';
+      card.innerHTML = `
+        <div>
+          <div class="iname">${escapeHtml(ex.name)}</div>
+          <div class="isub">${ex.sets} sets · ${ex.reps} reps${ex.hold?' · '+ex.hold+'s hold':''}</div>
+        </div>
+        <div class="item-actions">
+          <div class="small-icon" onclick="editExercise('${ex.id}')">✎</div>
+        </div>`;
+      listEl.appendChild(card);
+    });
+  }else{
+    if(DATA.routines.length===0){
+      listEl.innerHTML = '<div class="empty-state">No routines yet.<br>Tap + to build one.</div>';
+      return;
+    }
+    DATA.routines.forEach(r=>{
+      const card = document.createElement('div');
+      card.className='item-card';
+      card.innerHTML = `
+        <div>
+          <div class="iname">${escapeHtml(r.name)}</div>
+          <div class="isub">${r.exerciseIds.length} exercise${r.exerciseIds.length===1?'':'s'}</div>
+        </div>
+        <div class="item-actions">
+          <div class="small-icon" onclick="editRoutine('${r.id}')">✎</div>
+        </div>`;
+      listEl.appendChild(card);
+    });
+  }
+}
+
+function addNew(){
+  if(manageTab === 'exercises') editExercise(null);
+  else editRoutine(null);
+}
+
+/* ===================== FORM: EXERCISE ===================== */
+let editingExerciseId = null;
+let editingRoutineId = null;
+let formMode = null; // 'exercise' | 'routine'
+
+function editExercise(id){
+  editingExerciseId = id;
+  formMode = 'exercise';
+  const ex = id ? DATA.exercises.find(e=>e.id===id) : { name:'', steps:[''], sets:3, reps:10, hold:0 };
+  document.getElementById('formTitle').textContent = id ? 'Edit exercise' : 'New exercise';
+  document.getElementById('deleteBtn').style.visibility = id ? 'visible' : 'hidden';
+
+  const body = document.getElementById('formBody');
+  body.innerHTML = `
+    <div class="field">
+      <label>Name</label>
+      <input id="f_name" type="text" value="${escapeAttr(ex.name)}" placeholder="e.g. Glute Bridge">
+    </div>
+    <div class="field">
+      <label>Steps</label>
+      <div id="f_steps"></div>
+      <div class="control-btn" style="margin-top:4px;" onclick="addStepRow('')">+ Add step</div>
+    </div>
+    <div class="row3">
+      <div class="field"><label>Sets</label><input id="f_sets" type="number" min="0" value="${ex.sets}"></div>
+      <div class="field"><label>Reps</label><input id="f_reps" type="number" min="0" value="${ex.reps}"></div>
+      <div class="field"><label>Hold (sec)</label><input id="f_hold" type="number" min="0" value="${ex.hold||0}"></div>
+    </div>
+    <div class="save-btn" onclick="saveExercise()">Save exercise</div>
+  `;
+  const stepsContainer = document.getElementById('f_steps');
+  (ex.steps && ex.steps.length ? ex.steps : ['']).forEach(s=>addStepRow(s));
+  goTo('editForm');
+}
+
+function addStepRow(value){
+  const container = document.getElementById('f_steps');
+  const row = document.createElement('div');
+  row.className = 'step-row';
+  row.innerHTML = `
+    <input type="text" value="${escapeAttr(value)}" placeholder="Describe this step">
+    <div class="small-icon" onclick="this.parentElement.remove()">✕</div>
+  `;
+  container.appendChild(row);
+}
+
+function saveExercise(){
+  const name = document.getElementById('f_name').value.trim();
+  if(!name){ alert('Please give the exercise a name.'); return; }
+  const stepInputs = document.querySelectorAll('#f_steps .step-row input');
+  const steps = Array.from(stepInputs).map(i=>i.value.trim()).filter(Boolean);
+  const sets = parseInt(document.getElementById('f_sets').value) || 0;
+  const reps = parseInt(document.getElementById('f_reps').value) || 0;
+  const hold = parseInt(document.getElementById('f_hold').value) || 0;
+
+  if(editingExerciseId){
+    const ex = DATA.exercises.find(e=>e.id===editingExerciseId);
+    Object.assign(ex, {name, steps, sets, reps, hold});
+  }else{
+    DATA.exercises.push({ id:'e'+Date.now(), name, steps, sets, reps, hold });
+  }
+  saveData();
+  goTo('manage');
+}
+
+/* ===================== FORM: ROUTINE ===================== */
+function editRoutine(id){
+  editingRoutineId = id;
+  formMode = 'routine';
+  const r = id ? DATA.routines.find(x=>x.id===id) : { name:'', exerciseIds:[] };
+  document.getElementById('formTitle').textContent = id ? 'Edit routine' : 'New routine';
+  document.getElementById('deleteBtn').style.visibility = id ? 'visible' : 'hidden';
+
+  const body = document.getElementById('formBody');
+  body.innerHTML = `
+    <div class="field">
+      <label>Name</label>
+      <input id="f_rname" type="text" value="${escapeAttr(r.name)}" placeholder="e.g. Morning Mobility">
+    </div>
+    <div class="field">
+      <label>Exercises in order</label>
+      <div class="checklist" id="f_exChecklist"></div>
+    </div>
+    <div class="save-btn" onclick="saveRoutine()">Save routine</div>
+  `;
+  const checklist = document.getElementById('f_exChecklist');
+  if(DATA.exercises.length===0){
+    checklist.innerHTML = '<div class="empty-state">No exercises yet — add some first in the Exercises tab.</div>';
+  }else{
+    // preserve chosen order first, then the rest
+    const chosen = r.exerciseIds.map(id=>DATA.exercises.find(e=>e.id===id)).filter(Boolean);
+    const rest = DATA.exercises.filter(e=>!r.exerciseIds.includes(e.id));
+    [...chosen, ...rest].forEach(ex=>{
+      const checked = r.exerciseIds.includes(ex.id);
+      const card = document.createElement('div');
+      card.className = 'check-card' + (checked?' checked':'');
+      card.dataset.id = ex.id;
+      card.innerHTML = `<div class="checkbox">${checked?'✓':''}</div><div>${escapeHtml(ex.name)}</div>`;
+      card.onclick = ()=>{
+        card.classList.toggle('checked');
+        card.querySelector('.checkbox').textContent = card.classList.contains('checked') ? '✓' : '';
+      };
+      checklist.appendChild(card);
+    });
+  }
+  goTo('editForm');
+}
+
+function saveRoutine(){
+  const name = document.getElementById('f_rname').value.trim();
+  if(!name){ alert('Please give the routine a name.'); return; }
+  const cards = document.querySelectorAll('#f_exChecklist .check-card.checked');
+  const exerciseIds = Array.from(cards).map(c=>c.dataset.id);
+  if(exerciseIds.length===0){ alert('Pick at least one exercise for this routine.'); return; }
+
+  if(editingRoutineId){
+    const r = DATA.routines.find(x=>x.id===editingRoutineId);
+    Object.assign(r, {name, exerciseIds});
+  }else{
+    DATA.routines.push({ id:'r'+Date.now(), name, exerciseIds });
+  }
+  saveData();
+  goTo('manage');
+}
+
+function deleteCurrentItem(){
+  if(formMode === 'exercise' && editingExerciseId){
+    if(confirm('Delete this exercise? It will also be removed from any routines.')){
+      DATA.exercises = DATA.exercises.filter(e=>e.id!==editingExerciseId);
+      DATA.routines.forEach(r=>{ r.exerciseIds = r.exerciseIds.filter(id=>id!==editingExerciseId); });
+      saveData();
+      goTo('manage');
+    }
+  }else if(formMode === 'routine' && editingRoutineId){
+    if(confirm('Delete this routine?')){
+      DATA.routines = DATA.routines.filter(r=>r.id!==editingRoutineId);
+      saveData();
+      goTo('manage');
+    }
+  }
+}
+
+/* ===================== UTIL ===================== */
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+/* ===================== INIT ===================== */
+try{
+  renderHome();
+}catch(e){
+  console.error('PT Coach failed to initialize:', e);
+  document.getElementById('app').innerHTML =
+    '<div style="padding:40px 24px; text-align:center; color:#F4F1EA;">' +
+    '<h2 style="font-family:sans-serif;">Something went wrong loading PT Coach</h2>' +
+    '<p style="color:#9AA1AE; margin-top:10px;">Error: ' + escapeHtml(e.message) + '</p>' +
+    '<p style="color:#9AA1AE; margin-top:10px;">Try closing and reopening the app. If this keeps happening, ' +
+    'this page may need to be served from a real web address rather than opened as a local file.</p>' +
+    '</div>';
+}
+</script>
+</body>
+</html>
