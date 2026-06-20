@@ -191,6 +191,18 @@
   .sess-controls{
     display:flex; gap:10px; width:100%; max-width:480px;
   }
+  .rate-control{
+    width:100%; max-width:480px; margin: 4px 0 2px;
+  }
+  .rate-control label{
+    font-size:13px; color:var(--text-dim); font-weight:600; display:block; margin-bottom:4px;
+  }
+  .rate-control label span{
+    color:var(--accent-go); font-weight:700;
+  }
+  .rate-control input[type=range]{
+    width:100%; accent-color: var(--accent-go);
+  }
   .control-btn{
     flex:1; padding:14px; border-radius:14px; text-align:center;
     font-size:15px; font-weight:600; cursor:pointer; border:1px solid var(--line);
@@ -333,6 +345,10 @@
         <div class="speak-dot"></div>
       </div>
       <div class="mic-status" id="micStatus">Tap anywhere when you're ready</div>
+      <div class="rate-control">
+        <label for="rateSlider">Speed: <span id="rateLabel">0.65</span></label>
+        <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.65" oninput="onRateSliderChange(this.value)">
+      </div>
       <div class="sess-controls">
         <div class="control-btn" onclick="repeatCurrent()">Repeat</div>
         <div class="control-btn next" onclick="manualNext()">Next →</div>
@@ -372,7 +388,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v7';
+const APP_VERSION = 'v8';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -540,9 +556,11 @@ function startSession(routineId){
     alert('This routine has no exercises yet. Add some in Manage.');
     return;
   }
+  currentSpeechRate = DEFAULT_SPEECH_RATE; // always reset, never sticky
   session = { routine, exercises, index:0 };
   goTo('session');
   unlockSpeech();
+  syncRateSliderUI();
   presentCurrentExercise();
 }
 
@@ -690,13 +708,23 @@ function setSpeakingVisual(isSpeaking){
     : "Tap anywhere when you're ready";
 }
 
-// Small random human-like variation so the same line doesn't sound
-// like an identical recording every time it's spoken.
-function naturalRate(){
-  return 0.94 + Math.random() * 0.10;   // ~0.94 - 1.04
+// Speaking rate is controlled by a non-persistent in-session slider on the
+// session screen. It always resets to DEFAULT_SPEECH_RATE when the app starts
+// or a new session begins — it deliberately does not save between sessions.
+const DEFAULT_SPEECH_RATE = 0.65;
+let currentSpeechRate = DEFAULT_SPEECH_RATE;
+
+function onRateSliderChange(value){
+  currentSpeechRate = parseFloat(value);
+  const label = document.getElementById('rateLabel');
+  if(label) label.textContent = currentSpeechRate.toFixed(2);
 }
-function naturalPitch(){
-  return 0.96 + Math.random() * 0.10;   // ~0.96 - 1.06
+
+function syncRateSliderUI(){
+  const slider = document.getElementById('rateSlider');
+  const label = document.getElementById('rateLabel');
+  if(slider) slider.value = DEFAULT_SPEECH_RATE;
+  if(label) label.textContent = DEFAULT_SPEECH_RATE.toFixed(2);
 }
 
 function speak(text, onEnd){
@@ -708,8 +736,8 @@ function speak(text, onEnd){
   const utter = new SpeechSynthesisUtterance(text);
   const voice = pickVoice();
   if(voice) utter.voice = voice;
-  utter.rate = naturalRate();
-  utter.pitch = naturalPitch();
+  utter.rate = currentSpeechRate;
+  utter.pitch = 1.0;
   setSpeakingVisual(true);
   utter.onend = ()=>{
     setSpeakingVisual(false);
