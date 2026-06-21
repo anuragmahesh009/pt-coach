@@ -15,7 +15,7 @@
 exercises:
   # ---- program1.pdf: Allison - Back (PS-A) ----
   - id: PS-A-1
-    name: Supine Leg Raise with Strap
+    name: Supine Hamstring Stretch with Strap
     sets: 3
     reps:
     hold: 30
@@ -45,7 +45,7 @@ exercises:
       - Make sure not to arch your low back during the stretch.
 
   - id: PS-A-4
-    name: Supine Pelvic Tilt
+    name: Supine Posterior Pelvic Tilt
     sets: 2
     reps: 10
     hold: 5
@@ -55,7 +55,7 @@ exercises:
       - Make sure to only move your pelvis and low back and keep the rest of your body relaxed.
 
   - id: PS-A-5
-    name: Supine Squeeze Ball between Knees
+    name: Supine Hip Adduction Isometric with Ball
     sets: 2
     reps: 10
     hold: 5
@@ -65,7 +65,7 @@ exercises:
       - Make sure to keep your back flat against the floor during the exercise.
 
   - id: PS-A-6
-    name: Supine March with Band
+    name: Supine March with Resistance Band
     sets: 2
     reps: 10
     hold:
@@ -75,7 +75,7 @@ exercises:
       - Make sure to keep your trunk still during the exercise and do not let your low back arch.
 
   - id: PS-A-7
-    name: Supine Isometric Clamshell with Band
+    name: Hooklying Isometric Clamshell
     sets: 2
     reps: 10
     hold:
@@ -399,11 +399,7 @@ exercises:
 routines:
   - id: r-allison-back
     name: Allison - Back
-    exercises: [PS-A-1, PS-A-2, PS-A-4, PS-A-5, PS-A-6, PS-A-7, PS-A-8, PS-A-9, PS-A-10, PS-A-11, PS-A-12]
-
-  - id: r-allison-foot
-    name: Allison - Foot
-    exercises: [PS-A-13, PS-A-14, PS-A-15, PS-A-16]
+    exercises: [PS-A-1, PS-A-2, PS-A-3, PS-A-4, PS-A-5, PS-A-6, PS-A-7, PS-A-8, PS-A-9, PS-A-10, PS-A-11, PS-A-12, PS-A-13, PS-A-14, PS-A-15, PS-A-16]
 
   - id: r-prosports-neck
     name: Prosports - Neck
