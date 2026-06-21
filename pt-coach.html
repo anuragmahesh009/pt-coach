@@ -7,6 +7,7 @@
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <style>
   :root{
     --bg: #14181F;
@@ -357,27 +358,29 @@
     </div>
   </div>
 
-  <!-- MANAGE -->
+  <!-- VIEW DATA (read-only) -->
   <div class="screen" id="manage" style="position:relative;">
     <div class="topbar">
       <div class="iconbtn" onclick="goTo('home')">‹</div>
-      <h1>Manage</h1>
+      <h1>Your Data</h1>
       <div style="width:40px;"></div>
     </div>
+    <p class="tap-hint" style="text-align:left; padding:0 4px 10px;">
+      Read-only — edit pt-coach.yaml on GitHub to make changes.
+    </p>
     <div class="tabs">
       <div class="tab active" id="tabExercises" onclick="switchManageTab('exercises')">Exercises</div>
       <div class="tab" id="tabRoutines" onclick="switchManageTab('routines')">Routines</div>
     </div>
     <div class="list-scroll" id="manageList"></div>
-    <div class="fab" onclick="addNew()">+</div>
   </div>
 
-  <!-- EDIT FORM (exercise or routine) -->
+  <!-- DETAIL VIEW (exercise or routine, read-only) -->
   <div class="screen" id="editForm">
     <div class="topbar">
       <div class="iconbtn" onclick="goTo('manage')">‹</div>
-      <h1 id="formTitle">Edit exercise</h1>
-      <div class="iconbtn" id="deleteBtn" onclick="deleteCurrentItem()">🗑</div>
+      <h1 id="formTitle">Detail</h1>
+      <div style="width:40px;"></div>
     </div>
     <div class="form-scroll" id="formBody"></div>
   </div>
@@ -388,7 +391,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v9';
+const APP_VERSION = 'v10';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -425,89 +428,41 @@ window.addEventListener('unhandledrejection', function(e){
 });
 
 /* ===================== DATA ===================== */
-const STORAGE_KEY = 'pt_coach_data_v1';
+// Data lives in a separate file, pt-coach.yaml, sitting alongside this HTML
+// file in the same GitHub repo. There is no local storage and no hardcoded
+// defaults here — every load fetches the current YAML fresh, so the app
+// and the data are cleanly separated, and every device always sees the
+// same data (whatever's currently in the YAML file on GitHub).
+const DATA_FILE = 'pt-coach.yaml';
 
-// Some browsers (especially Safari opening files via file://) can block or
-// throw on localStorage access entirely. This wrapper falls back to a plain
-// in-memory object so the app still works — it just won't persist across
-// closing the app in that specific situation.
-const safeStorage = (function(){
-  let memoryFallback = {};
-  let useMemory = false;
+let DATA = { exercises: [], routines: [] };
+let dataLoadError = null;
+
+async function loadData(){
   try{
-    const testKey = '__pt_coach_test__';
-    window.localStorage.setItem(testKey, '1');
-    window.localStorage.removeItem(testKey);
+    const res = await fetch(DATA_FILE, { cache: 'no-store' });
+    if(!res.ok){
+      throw new Error('Could not fetch ' + DATA_FILE + ' (HTTP ' + res.status + ')');
+    }
+    const text = await res.text();
+    const parsed = jsyaml.load(text);
+    if(!parsed || !Array.isArray(parsed.exercises) || !Array.isArray(parsed.routines)){
+      throw new Error(DATA_FILE + ' is missing "exercises" or "routines" lists.');
+    }
+    // Normalize routine.exercises -> exerciseIds internally, to keep the
+    // rest of the app's logic (written before this YAML rework) unchanged.
+    DATA = {
+      exercises: parsed.exercises,
+      routines: parsed.routines.map(r => ({
+        id: r.id,
+        name: r.name,
+        exerciseIds: r.exercises || []
+      }))
+    };
+    dataLoadError = null;
   }catch(e){
-    useMemory = true;
-  }
-  return {
-    getItem(key){
-      if(useMemory) return memoryFallback.hasOwnProperty(key) ? memoryFallback[key] : null;
-      try{ return window.localStorage.getItem(key); }
-      catch(e){ return memoryFallback.hasOwnProperty(key) ? memoryFallback[key] : null; }
-    },
-    setItem(key, value){
-      if(useMemory){ memoryFallback[key] = value; return; }
-      try{ window.localStorage.setItem(key, value); }
-      catch(e){ memoryFallback[key] = value; }
-    },
-    usingMemory(){ return useMemory; }
-  };
-})();
-
-function defaultData(){
-  return {
-    exercises: [
-      { id:'e1', name:'Glute Bridge', steps:[
-          'Lie on your back, knees bent, feet flat on the floor.',
-          'Push through your heels and lift your hips toward the ceiling.',
-          'Squeeze your glutes at the top, then lower slowly.'
-        ], sets:3, reps:12, hold:2 },
-      { id:'e2', name:'Wall Sit', steps:[
-          'Stand with your back against a wall.',
-          'Slide down until your knees are at about 90 degrees.',
-          'Hold the position, keeping your back flat against the wall.'
-        ], sets:3, reps:1, hold:30 },
-      { id:'e3', name:'Standing Calf Raise', steps:[
-          'Stand tall, holding onto a wall or chair for balance.',
-          'Rise up onto your toes as high as you can.',
-          'Hold briefly, then lower back down with control.'
-        ], sets:3, reps:15, hold:1 },
-      { id:'e4', name:'Bird Dog', steps:[
-          'Start on hands and knees, back flat.',
-          'Extend your right arm forward and left leg back, keeping hips level.',
-          'Hold, then return and switch sides.'
-        ], sets:2, reps:10, hold:3 },
-      { id:'e5', name:'Seated Hamstring Stretch', steps:[
-          'Sit on the edge of a chair, one leg extended with heel on the floor.',
-          'Sit tall and hinge forward gently from the hips.',
-          'Hold the stretch, feeling it in the back of the thigh.'
-        ], sets:2, reps:1, hold:20 }
-    ],
-    routines: [
-      { id:'r1', name:'Morning Mobility', exerciseIds:['e1','e3','e4'] },
-      { id:'r2', name:'Knee Rehab — Lower', exerciseIds:['e1','e2','e3','e5'] },
-      { id:'r3', name:'Full Routine', exerciseIds:['e1','e2','e3','e4','e5'] }
-    ]
-  };
-}
-
-let DATA = loadData();
-function loadData(){
-  try{
-    const raw = safeStorage.getItem(STORAGE_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return defaultData();
-}
-function saveData(){
-  try{
-    safeStorage.setItem(STORAGE_KEY, JSON.stringify(DATA));
-  }catch(e){
-    // If even this fails, the app keeps working in-memory for this session;
-    // changes just won't be remembered after closing.
-    console.warn('Could not persist data:', e);
+    dataLoadError = e.message;
+    DATA = { exercises: [], routines: [] };
   }
 }
 
@@ -754,7 +709,10 @@ function speakExercise(ex){
   speak(buildSpokenText(ex));
 }
 
-/* ===================== MANAGE: LIST ===================== */
+/* ===================== MANAGE: LIST (READ-ONLY) ===================== */
+// Editing now happens by hand-editing pt-coach.yaml directly on GitHub —
+// this screen is just a read-only viewer so you can confirm what's
+// currently loaded.
 let manageTab = 'exercises';
 function switchManageTab(tab){
   manageTab = tab;
@@ -768,188 +726,87 @@ function renderManageList(){
   listEl.innerHTML = '';
   if(manageTab === 'exercises'){
     if(DATA.exercises.length===0){
-      listEl.innerHTML = '<div class="empty-state">No exercises yet.<br>Tap + to add your first one.</div>';
+      listEl.innerHTML = '<div class="empty-state">No exercises found in pt-coach.yaml.</div>';
       return;
     }
     DATA.exercises.forEach(ex=>{
       const card = document.createElement('div');
       card.className='item-card';
+      card.onclick = ()=> viewExercise(ex.id);
       card.innerHTML = `
         <div>
           <div class="iname">${escapeHtml(ex.name)}</div>
           <div class="isub">${ex.sets} sets · ${ex.reps} reps${ex.hold?' · '+ex.hold+'s hold':''}</div>
         </div>
-        <div class="item-actions">
-          <div class="small-icon" onclick="editExercise('${ex.id}')">✎</div>
-        </div>`;
+        <div class="item-actions"><div class="small-icon">›</div></div>`;
       listEl.appendChild(card);
     });
   }else{
     if(DATA.routines.length===0){
-      listEl.innerHTML = '<div class="empty-state">No routines yet.<br>Tap + to build one.</div>';
+      listEl.innerHTML = '<div class="empty-state">No routines found in pt-coach.yaml.</div>';
       return;
     }
     DATA.routines.forEach(r=>{
       const card = document.createElement('div');
       card.className='item-card';
+      card.onclick = ()=> viewRoutine(r.id);
       card.innerHTML = `
         <div>
           <div class="iname">${escapeHtml(r.name)}</div>
           <div class="isub">${r.exerciseIds.length} exercise${r.exerciseIds.length===1?'':'s'}</div>
         </div>
-        <div class="item-actions">
-          <div class="small-icon" onclick="editRoutine('${r.id}')">✎</div>
-        </div>`;
+        <div class="item-actions"><div class="small-icon">›</div></div>`;
       listEl.appendChild(card);
     });
   }
 }
 
-function addNew(){
-  if(manageTab === 'exercises') editExercise(null);
-  else editRoutine(null);
-}
-
-/* ===================== FORM: EXERCISE ===================== */
-let editingExerciseId = null;
-let editingRoutineId = null;
-let formMode = null; // 'exercise' | 'routine'
-
-function editExercise(id){
-  editingExerciseId = id;
-  formMode = 'exercise';
-  const ex = id ? DATA.exercises.find(e=>e.id===id) : { name:'', steps:[''], sets:3, reps:10, hold:0 };
-  document.getElementById('formTitle').textContent = id ? 'Edit exercise' : 'New exercise';
-  document.getElementById('deleteBtn').style.visibility = id ? 'visible' : 'hidden';
-
+/* ===================== DETAIL VIEW (READ-ONLY) ===================== */
+function viewExercise(id){
+  const ex = DATA.exercises.find(e=>e.id===id);
+  if(!ex) return;
+  document.getElementById('formTitle').textContent = ex.name;
   const body = document.getElementById('formBody');
   body.innerHTML = `
-    <div class="field">
-      <label>Name</label>
-      <input id="f_name" type="text" value="${escapeAttr(ex.name)}" placeholder="e.g. Glute Bridge">
-    </div>
     <div class="field">
       <label>Steps</label>
-      <div id="f_steps"></div>
-      <div class="control-btn" style="margin-top:4px;" onclick="addStepRow('')">+ Add step</div>
+      <div class="steps-box" style="margin:0;">
+        <ol>${ex.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>
+      </div>
     </div>
-    <div class="row3">
-      <div class="field"><label>Sets</label><input id="f_sets" type="number" min="0" value="${ex.sets}"></div>
-      <div class="field"><label>Reps</label><input id="f_reps" type="number" min="0" value="${ex.reps}"></div>
-      <div class="field"><label>Hold (sec)</label><input id="f_hold" type="number" min="0" value="${ex.hold||0}"></div>
+    <div class="row3" style="margin-top:16px;">
+      <div class="stat-pill"><span class="stat-label">Sets</span>${ex.sets}</div>
+      <div class="stat-pill"><span class="stat-label">Reps</span>${ex.reps}</div>
+      <div class="stat-pill"><span class="stat-label">Hold</span>${ex.hold?ex.hold+'s':'—'}</div>
     </div>
-    <div class="save-btn" onclick="saveExercise()">Save exercise</div>
+    <p class="tap-hint" style="text-align:left; margin-top:18px;">
+      To change this, edit pt-coach.yaml directly on GitHub.
+    </p>
   `;
-  const stepsContainer = document.getElementById('f_steps');
-  (ex.steps && ex.steps.length ? ex.steps : ['']).forEach(s=>addStepRow(s));
   goTo('editForm');
 }
 
-function addStepRow(value){
-  const container = document.getElementById('f_steps');
-  const row = document.createElement('div');
-  row.className = 'step-row';
-  row.innerHTML = `
-    <input type="text" value="${escapeAttr(value)}" placeholder="Describe this step">
-    <div class="small-icon" onclick="this.parentElement.remove()">✕</div>
-  `;
-  container.appendChild(row);
-}
-
-function saveExercise(){
-  const name = document.getElementById('f_name').value.trim();
-  if(!name){ alert('Please give the exercise a name.'); return; }
-  const stepInputs = document.querySelectorAll('#f_steps .step-row input');
-  const steps = Array.from(stepInputs).map(i=>i.value.trim()).filter(Boolean);
-  const sets = parseInt(document.getElementById('f_sets').value) || 0;
-  const reps = parseInt(document.getElementById('f_reps').value) || 0;
-  const hold = parseInt(document.getElementById('f_hold').value) || 0;
-
-  if(editingExerciseId){
-    const ex = DATA.exercises.find(e=>e.id===editingExerciseId);
-    Object.assign(ex, {name, steps, sets, reps, hold});
-  }else{
-    DATA.exercises.push({ id:'e'+Date.now(), name, steps, sets, reps, hold });
-  }
-  saveData();
-  goTo('manage');
-}
-
-/* ===================== FORM: ROUTINE ===================== */
-function editRoutine(id){
-  editingRoutineId = id;
-  formMode = 'routine';
-  const r = id ? DATA.routines.find(x=>x.id===id) : { name:'', exerciseIds:[] };
-  document.getElementById('formTitle').textContent = id ? 'Edit routine' : 'New routine';
-  document.getElementById('deleteBtn').style.visibility = id ? 'visible' : 'hidden';
-
+function viewRoutine(id){
+  const r = DATA.routines.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('formTitle').textContent = r.name;
   const body = document.getElementById('formBody');
+  const exNames = r.exerciseIds.map(id=>{
+    const ex = DATA.exercises.find(e=>e.id===id);
+    return ex ? ex.name : '(missing exercise: ' + id + ')';
+  });
   body.innerHTML = `
     <div class="field">
-      <label>Name</label>
-      <input id="f_rname" type="text" value="${escapeAttr(r.name)}" placeholder="e.g. Morning Mobility">
-    </div>
-    <div class="field">
       <label>Exercises in order</label>
-      <div class="checklist" id="f_exChecklist"></div>
+      <div class="checklist">
+        ${exNames.map((n,i)=>`<div class="check-card checked"><div class="checkbox">${i+1}</div><div>${escapeHtml(n)}</div></div>`).join('')}
+      </div>
     </div>
-    <div class="save-btn" onclick="saveRoutine()">Save routine</div>
+    <p class="tap-hint" style="text-align:left; margin-top:18px;">
+      To change this, edit pt-coach.yaml directly on GitHub.
+    </p>
   `;
-  const checklist = document.getElementById('f_exChecklist');
-  if(DATA.exercises.length===0){
-    checklist.innerHTML = '<div class="empty-state">No exercises yet — add some first in the Exercises tab.</div>';
-  }else{
-    // preserve chosen order first, then the rest
-    const chosen = r.exerciseIds.map(id=>DATA.exercises.find(e=>e.id===id)).filter(Boolean);
-    const rest = DATA.exercises.filter(e=>!r.exerciseIds.includes(e.id));
-    [...chosen, ...rest].forEach(ex=>{
-      const checked = r.exerciseIds.includes(ex.id);
-      const card = document.createElement('div');
-      card.className = 'check-card' + (checked?' checked':'');
-      card.dataset.id = ex.id;
-      card.innerHTML = `<div class="checkbox">${checked?'✓':''}</div><div>${escapeHtml(ex.name)}</div>`;
-      card.onclick = ()=>{
-        card.classList.toggle('checked');
-        card.querySelector('.checkbox').textContent = card.classList.contains('checked') ? '✓' : '';
-      };
-      checklist.appendChild(card);
-    });
-  }
   goTo('editForm');
-}
-
-function saveRoutine(){
-  const name = document.getElementById('f_rname').value.trim();
-  if(!name){ alert('Please give the routine a name.'); return; }
-  const cards = document.querySelectorAll('#f_exChecklist .check-card.checked');
-  const exerciseIds = Array.from(cards).map(c=>c.dataset.id);
-  if(exerciseIds.length===0){ alert('Pick at least one exercise for this routine.'); return; }
-
-  if(editingRoutineId){
-    const r = DATA.routines.find(x=>x.id===editingRoutineId);
-    Object.assign(r, {name, exerciseIds});
-  }else{
-    DATA.routines.push({ id:'r'+Date.now(), name, exerciseIds });
-  }
-  saveData();
-  goTo('manage');
-}
-
-function deleteCurrentItem(){
-  if(formMode === 'exercise' && editingExerciseId){
-    if(confirm('Delete this exercise? It will also be removed from any routines.')){
-      DATA.exercises = DATA.exercises.filter(e=>e.id!==editingExerciseId);
-      DATA.routines.forEach(r=>{ r.exerciseIds = r.exerciseIds.filter(id=>id!==editingExerciseId); });
-      saveData();
-      goTo('manage');
-    }
-  }else if(formMode === 'routine' && editingRoutineId){
-    if(confirm('Delete this routine?')){
-      DATA.routines = DATA.routines.filter(r=>r.id!==editingRoutineId);
-      saveData();
-      goTo('manage');
-    }
-  }
 }
 
 /* ===================== UTIL ===================== */
@@ -959,18 +816,36 @@ function escapeHtml(str){
 function escapeAttr(str){ return escapeHtml(str); }
 
 /* ===================== INIT ===================== */
-try{
-  renderHome();
-}catch(e){
-  console.error('PT Coach failed to initialize:', e);
-  document.getElementById('app').innerHTML =
-    '<div style="padding:40px 24px; text-align:center; color:#F4F1EA;">' +
-    '<h2 style="font-family:sans-serif;">Something went wrong loading PT Coach</h2>' +
-    '<p style="color:#9AA1AE; margin-top:10px;">Error: ' + escapeHtml(e.message) + '</p>' +
-    '<p style="color:#9AA1AE; margin-top:10px;">Try closing and reopening the app. If this keeps happening, ' +
-    'this page may need to be served from a real web address rather than opened as a local file.</p>' +
-    '</div>';
+async function initApp(){
+  try{
+    // Show a lightweight loading state while we fetch pt-coach.yaml.
+    const list = document.getElementById('routineList');
+    if(list) list.innerHTML = '<div class="empty-state">Loading your routines…</div>';
+
+    await loadData();
+
+    if(dataLoadError){
+      document.getElementById('app').innerHTML =
+        '<div style="padding:40px 24px; text-align:center; color:#F4F1EA;">' +
+        '<h2 style="font-family:sans-serif;">Could not load pt-coach.yaml</h2>' +
+        '<p style="color:#9AA1AE; margin-top:10px;">' + escapeHtml(dataLoadError) + '</p>' +
+        '<p style="color:#9AA1AE; margin-top:10px;">Make sure pt-coach.yaml exists in the same GitHub repo as this page, ' +
+        'and that you have an internet connection.</p>' +
+        '</div>';
+      return;
+    }
+
+    renderHome();
+  }catch(e){
+    console.error('PT Coach failed to initialize:', e);
+    document.getElementById('app').innerHTML =
+      '<div style="padding:40px 24px; text-align:center; color:#F4F1EA;">' +
+      '<h2 style="font-family:sans-serif;">Something went wrong loading PT Coach</h2>' +
+      '<p style="color:#9AA1AE; margin-top:10px;">Error: ' + escapeHtml(e.message) + '</p>' +
+      '</div>';
+  }
 }
+initApp();
 </script>
 </body>
 </html>

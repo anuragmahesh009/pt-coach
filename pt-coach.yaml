@@ -1,0 +1,75 @@
+# PT Coach data file
+# -------------------
+# This file holds all your exercises and routines. Edit it directly on
+# GitHub (click the file, then the pencil/edit icon) to add, change, or
+# remove anything. The app reads this file fresh every time it loads.
+#
+# Each exercise needs: id, name, steps (a list), sets, reps, hold (seconds)
+# Each routine needs: id, name, exercises (a list of exercise ids, in order)
+#
+# IDs just need to be unique text — e1, e2, e3... is fine, or use short
+# descriptive names like "glute-bridge" if you prefer.
+
+exercises:
+  - id: e1
+    name: Glute Bridge
+    sets: 3
+    reps: 12
+    hold: 2
+    steps:
+      - Lie on your back, knees bent, feet flat on the floor.
+      - Push through your heels and lift your hips toward the ceiling.
+      - Squeeze your glutes at the top, then lower slowly.
+
+  - id: e2
+    name: Wall Sit
+    sets: 3
+    reps: 1
+    hold: 30
+    steps:
+      - Stand with your back against a wall.
+      - Slide down until your knees are at about 90 degrees.
+      - Hold the position, keeping your back flat against the wall.
+
+  - id: e3
+    name: Standing Calf Raise
+    sets: 3
+    reps: 15
+    hold: 1
+    steps:
+      - Stand tall, holding onto a wall or chair for balance.
+      - Rise up onto your toes as high as you can.
+      - Hold briefly, then lower back down with control.
+
+  - id: e4
+    name: Bird Dog
+    sets: 2
+    reps: 10
+    hold: 3
+    steps:
+      - Start on hands and knees, back flat.
+      - Extend your right arm forward and left leg back, keeping hips level.
+      - Hold, then return and switch sides.
+
+  - id: e5
+    name: Seated Hamstring Stretch
+    sets: 2
+    reps: 1
+    hold: 20
+    steps:
+      - Sit on the edge of a chair, one leg extended with heel on the floor.
+      - Sit tall and hinge forward gently from the hips.
+      - Hold the stretch, feeling it in the back of the thigh.
+
+routines:
+  - id: r1
+    name: Morning Mobility
+    exercises: [e1, e3, e4]
+
+  - id: r2
+    name: Knee Rehab — Lower
+    exercises: [e1, e2, e3, e5]
+
+  - id: r3
+    name: Full Routine
+    exercises: [e1, e2, e3, e4, e5]
