@@ -6,70 +6,400 @@
 #
 # Each exercise needs: id, name, steps (a list), sets, reps, hold (seconds)
 # Each routine needs: id, name, exercises (a list of exercise ids, in order)
-#
-# IDs just need to be unique text — e1, e2, e3... is fine, or use short
-# descriptive names like "glute-bridge" if you prefer.
 
 exercises:
-  - id: e1
-    name: Glute Bridge
-    sets: 50
-    reps: 12
-    hold: 2
-    steps:
-      - Lie on your back, knees bent, feet flat on the floor.
-      - Push through your heels and lift your hips toward the ceiling.
-      - Squeeze your glutes at the top, then lower slowly.
-
-  - id: e2
-    name: Wall Sit
-    sets: 3
-    reps: 1
+  # ---- Program 1: Allison - Back (PS-A) ----
+  - id: PS-A-1
+    name: Supine Quadriceps Stretch with Strap on Table
+    sets: 1
+    reps: 3
     hold: 30
     steps:
-      - Stand with your back against a wall.
-      - Slide down until your knees are at about 90 degrees.
-      - Hold the position, keeping your back flat against the wall.
+      - Begin lying on your back on a table or bed with one leg hanging off the edge, holding the end of a strap that is draped over your shoulder and secured around your foot.
+      - Slowly pull on the strap, bending your knee until you feel a stretch in the front of your thigh. Hold this position.
+      - Make sure not to arch your low back during the stretch.
 
-  - id: e3
-    name: Standing Calf Raise
-    sets: 3
-    reps: 15
-    hold: 1
+  - id: PS-A-2
+    name: Hooklying Hamstring Stretch with Strap
+    sets: 1
+    reps: 3
+    hold: 30
     steps:
-      - Stand tall, holding onto a wall or chair for balance.
-      - Rise up onto your toes as high as you can.
-      - Hold briefly, then lower back down with control.
+      - Begin lying on your back holding the end of a strap secured around one foot with your legs bent and feet flat on the floor.
+      - Straighten your leg with the strap and pull it toward yourself until you feel a stretch in the back of your thigh and hold.
+      - You can have a slight bend in your knee but keep your foot straight.
 
-  - id: e4
-    name: Bird Dog
+  - id: PS-A-3
+    name: Standing Quadratus Lumborum Stretch with Doorway
+    sets: 1
+    reps: 3
+    hold: 30
+    steps:
+      - Begin in a standing upright position to the side of a doorframe.
+      - Cross your outside leg behind the other and hold onto the doorframe, then slowly lean your hips away until you feel a gentle stretch along the side of your body.
+      - Make sure to maintain a gentle stretch and only move in a comfortable range.
+
+  - id: PS-A-4
+    name: Supine Piriformis Stretch with Foot on Ground
+    sets: 1
+    reps: 3
+    hold: 30
+    steps:
+      - Begin by lying on your back with both knees bent and feet resting flat on the ground. Cross one leg over the other so your foot is resting on your knee.
+      - Grab your leg just below the knee and slowly draw it towards your opposite shoulder until you feel a stretch in your buttocks.
+      - Do not allow your back to twist or bend excessively during the stretch.
+
+  - id: PS-A-5
+    name: Hip Extension with Resistance Loop
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin in a standing upright position with a resistance band looped around your ankles, holding a stable object for balance.
+      - Lift one leg backward, keeping your knee straight. Then bring it back to the starting position and repeat.
+      - Make sure to keep your abdominals tight and your back straight during the exercise.
+
+  - id: PS-A-6
+    name: Hip Abduction with Resistance Loop
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin in a standing upright position with a resistance band looped around your ankles, holding a stable object for balance.
+      - Lift one leg to your side, keeping your knee straight. Return to the starting position and repeat.
+      - Make sure to keep your abdominals tight and your back straight during the exercise.
+
+  - id: PS-A-7
+    name: Supine Bridge with Resistance Band
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back with your arms laying at your sides, your legs bent at the knees and your feet flat on the ground, with a resistance band secured around your legs.
+      - Maintaining tension in the resistance band, tighten your abdominals and slowly lift your hips off the floor into a bridge position, keeping your back straight.
+      - Make sure to keep your trunk stiff throughout the exercise and your arms flat on the floor.
+
+  - id: PS-A-8
+    name: Standing Anti-Rotation Press with Anchored Resistance
+    sets: 1
+    reps: 10
+    hold: 10
+    steps:
+      - Begin in a standing upright position holding a resistance band in both hands that is anchored at your side.
+      - Press your arms straight forward. Hold briefly, then bring your arms back in and repeat.
+      - Make sure to keep your knees slightly bent and do not let your trunk rotate as you press the band forward.
+
+  - id: PS-A-9
+    name: Supine Lower Trunk Rotation
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back with your feet flat on the floor and your arms straight out to your sides.
+      - Lower your knees to one side, return to center, and repeat on the other side.
+      - Make sure to activate your core muscles and keep both of your shoulders in contact with the ground throughout the exercise.
+
+  - id: PS-A-10
+    name: Supine 90/90 Alternating Toe Touch
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Lie on your back with your knees bent.
+      - Lift your legs off the ground to form a 90 degree angle. Slowly lower one leg, touching your toes to the floor, then return to the starting position and repeat with the opposite leg.
+      - Do not allow your low back to arch during the exercise.
+
+  # ---- Program 2: Prosports - Neck (PS-N) ----
+  - id: PS-N-1
+    name: Seated Cervical Retraction
     sets: 2
     reps: 10
-    hold: 3
+    hold: 5
     steps:
-      - Start on hands and knees, back flat.
-      - Extend your right arm forward and left leg back, keeping hips level.
-      - Hold, then return and switch sides.
+      - Begin sitting in an upright position with your feet flat on the floor.
+      - Gently draw your chin in, while keeping your eyes fixed on something in front of you.
+      - Make sure that you do not look down as you do this exercise, or bend your neck forward.
 
-  - id: e5
-    name: Seated Hamstring Stretch
-    sets: 2
-    reps: 1
-    hold: 20
+  - id: PS-N-2
+    name: Seated Cervical Sidebending Stretch
+    sets: 1
+    reps: 4
+    hold: 30
     steps:
-      - Sit on the edge of a chair, one leg extended with heel on the floor.
-      - Sit tall and hinge forward gently from the hips.
-      - Hold the stretch, feeling it in the back of the thigh.
+      - Begin sitting in an upright position.
+      - Use one hand to tilt your head sideways, pulling your ear toward one shoulder until you feel a stretch in the opposite side of your neck, and hold.
+      - Make sure to keep your back straight and do not let your head rotate, or bend forward or backward.
+
+  - id: PS-N-3
+    name: Seated Levator Scapulae Stretch
+    sets: 1
+    reps: 4
+    hold: 30
+    steps:
+      - Begin sitting upright in a chair, grasping the edge with one hand.
+      - Rotate your head to the side opposite your anchored arm, then tuck your chin towards your chest. With your free hand, grasp the back of your head and gently pull it downward until you feel a stretch and hold.
+      - Make sure to keep your back straight during the exercise.
+
+  - id: PS-N-4
+    name: Corner Pec Minor Stretch
+    sets: 1
+    reps: 4
+    hold: 30
+    steps:
+      - Begin in a standing upright position facing a corner. Keeping your arms straight, place your forearms flat on the wall on each side of the corner.
+      - Slowly lean forward, taking a small step if needed, until you feel a gentle stretch in the front of your shoulders. Hold this position.
+      - Make sure to keep your upper back and neck relaxed. Do not shrug your shoulders during the stretch.
+
+  - id: PS-N-5
+    name: Standing Shoulder Row with Anchored Resistance
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin standing upright, holding both ends of a resistance band that is anchored in front of you at chest height, with your palms facing inward.
+      - Pull your arms back with your elbows tucked at your sides, then return to the starting position and repeat.
+      - Make sure to keep your core engaged and focus on squeezing your shoulder blades together as you pull on the band.
+
+  - id: PS-N-6
+    name: Shoulder Extension with Resistance - Neutral
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin standing upright with your arms straight forward and palms facing inward, holding the ends of a resistance band that is anchored overhead in front of you.
+      - Pull your arms down to your sides, squeezing your shoulder blades together. Then bring them back up to the starting position and repeat.
+      - Make sure to keep your elbows and back straight, and do not shrug your shoulders during the exercise.
+
+  - id: PS-N-7
+    name: Shoulder External Rotation and Scapular Retraction with Resistance
+    sets: 2
+    reps: 10
+    hold: 5
+    steps:
+      - Begin in an upright standing position with your arms by your sides, holding a resistance band in both hands. Bend your elbows to approximately 90 degrees with your palms up.
+      - Slowly rotate your forearms out to the side. As you do so, pinch your shoulder blades down and back together. Pause briefly, then return to the starting position.
+      - Make sure that you keep the bend in your elbows as you rotate your arms. Avoid shrugging your shoulders.
+
+  - id: PS-N-8
+    name: Sidelying Open Book Thoracic Rotation with Knee on Foam Roll
+    sets: 2
+    reps: 15
+    hold:
+    steps:
+      - Begin lying on your side with your bottom leg straight, and your top leg bent at 90 degrees, resting on a foam roll. Your arms should be straight and together in front of you on the ground.
+      - Slowly move your top arm away from your other arm, bringing it to the floor behind you, and rotating your upper trunk. Next, bring your arms back together, and repeat.
+      - Make sure to keep your top leg on the foam roll.
+
+  - id: PS-N-9
+    name: Seated Lumbar Flexion Stretch
+    sets: 1
+    reps: 4
+    hold: 30
+    steps:
+      - Begin sitting in a chair with your knees spread apart.
+      - Bend forward, letting your arms hang toward the ground until you feel a stretch in your lower back.
+      - Make sure to keep your movements slow and controlled and do not rise up off the chair when you bend forward.
+
+  - id: PS-N-10
+    name: Supine Single Knee to Chest Stretch
+    sets: 1
+    reps: 4
+    hold: 30
+    steps:
+      - Begin lying on your back with your legs straight.
+      - Using your hands, slowly pull one knee toward your chest until you feel a gentle stretch in your lower back.
+      - Make sure to keep your back relaxed and flat on the ground during the stretch.
+
+  - id: PS-N-11
+    name: Supine Bridge
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back with your arms resting at your sides, your legs bent at the knees and your feet flat on the ground.
+      - Tighten your abdominals and slowly lift your hips off the floor into a bridge position, keeping your back straight.
+      - Make sure to keep your trunk stiff throughout the exercise and your arms flat on the floor.
+
+  - id: PS-N-12
+    name: Dead Bug
+    sets: 3
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back with your legs bent.
+      - Lift your legs and arms off the ground, keeping your knees bent. Lower one arm to the ground and lower your opposite leg at the same time. Repeat with your opposite arm and leg, then continue this movement.
+      - Make sure to keep your abdominals stiff as you lower your arm and leg, and do not let your low back arch off the ground.
+
+  # ---- Program 3: Prosports - Back (PS-B) ----
+  - id: PS-B-1
+    name: Supine Hamstring Stretch with Strap
+    sets: 3
+    reps:
+    hold: 30
+    steps:
+      - Begin lying on your back with your legs straight, holding the end of a strap that is looped around one foot.
+      - Use the strap to pull your leg up toward your body until you feel a gentle stretch in the back of your upper leg. Hold this position.
+      - Make sure to keep your other leg straight on the ground during the stretch.
+
+  - id: PS-B-2
+    name: Supine Piriformis Stretch with Leg Straight
+    sets: 3
+    reps:
+    hold: 30
+    steps:
+      - Begin by lying on your back with your legs straight.
+      - Bring one leg up toward your opposite shoulder, grabbing the outside of your knee with your hand, until you feel a stretch in your buttocks.
+      - Make sure to keep your low back flat against the floor and do not allow your trunk to twist during the stretch.
+
+  - id: PS-B-3
+    name: Supine Quadriceps Stretch with Strap on Table
+    sets: 3
+    reps:
+    hold: 30
+    steps:
+      - Begin lying on your back on a table or bed with one leg hanging off the edge, holding the end of a strap that is draped over your shoulder and secured around your foot.
+      - Slowly pull on the strap, bending your knee until you feel a stretch in the front of your thigh. Hold this position.
+      - Make sure not to arch your low back during the stretch.
+
+  - id: PS-B-4
+    name: Supine Posterior Pelvic Tilt
+    sets: 2
+    reps: 10
+    hold: 5
+    steps:
+      - Begin by lying on your back with your knees bent and feet resting on the floor.
+      - Slowly bend your low back and tilt your pelvis backward into the floor, then return to the starting position and repeat.
+      - Make sure to only move your pelvis and low back and keep the rest of your body relaxed.
+
+  - id: PS-B-5
+    name: Supine Hip Adduction Isometric with Ball
+    sets: 2
+    reps: 10
+    hold: 5
+    steps:
+      - Begin lying on your back with your legs bent, feet resting on the floor, and a soft ball positioned between your knees.
+      - Squeeze your knees together into the ball, then release and repeat.
+      - Make sure to keep your back flat against the floor during the exercise.
+
+  - id: PS-B-6
+    name: Supine March with Resistance Band
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back with your knees bent, feet resting on the floor, and a resistance band or loop secured around your legs.
+      - Tighten your abdominals and slowly raise one of your legs off the floor, keeping your knee bent. Then return to the starting position and repeat with your other leg.
+      - Make sure to keep your trunk still during the exercise and do not let your low back arch.
+
+  - id: PS-B-7
+    name: Hooklying Isometric Clamshell
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin by lying on your back with your knees bent and feet resting on the floor, with a resistance band or loop secured around your knees.
+      - Keep one leg stationary as you draw your other leg outward, and hold.
+      - Make sure to not arch your low back during the exercise.
+
+  - id: PS-B-8
+    name: Supine Shoulder Horizontal Abduction with Resistance
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back with your knees bent and the ends of a resistance band in each hand. Your arms should be straight up toward the ceiling.
+      - Pull your arms apart against the resistance band, straight out to your sides, then slowly bring them back to the starting position and repeat.
+      - Make sure to keep your back flat on the floor during the exercise.
+
+  - id: PS-B-9
+    name: Supine Shoulder External Rotation with Resistance
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin lying on your back holding the ends of a resistance band in each hand.
+      - Rotate your hands outward, keeping your elbows bent and pulling the band apart.
+      - Make sure to keep your back flat and do not shrug your shoulders.
+
+  - id: PS-B-10
+    name: Standing Tandem Balance with Counter Support
+    sets: 3
+    reps:
+    hold: 30
+    steps:
+      - Begin in a standing upright position with your hands resting on a counter.
+      - Place one foot directly behind the other, so that you are in a heel-to-toe position. Maintain your balance in this position.
+      - Make sure to maintain an upright posture and use the counter to help you balance as needed.
+
+  - id: PS-B-11
+    name: Standing Hip Abduction with Resistance at Ankles and Counter Support
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin in a standing upright position with your hands resting on a counter in front of you and a resistance band looped around your ankles.
+      - Shift your weight to one side and pick the other foot up, pushing against the resistance. Hold briefly, then slowly return to the starting position and repeat leaning to the other side.
+      - Make sure to maintain an upright posture and use the counter to help you balance as needed.
+
+  - id: PS-B-12
+    name: Long Sitting Calf Stretch with Strap
+    sets: 3
+    reps:
+    hold: 30
+    steps:
+      - Begin sitting on the floor with one foot stretched in front of you, your other knee bent, and a strap secured around your foot.
+      - Slowly pull your foot towards you with the strap until you feel a stretch in your calf.
+      - Make sure to keep your knee straight during the stretch.
+
+  - id: PS-B-13
+    name: Great Toe Flexion with Resistance
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin sitting in an upright position on the floor with a resistance band looped vertically along your foot, under your heel and over your toes, holding the ends in your hand.
+      - Push your big toe forward against the resistance band, then bring it back to the starting position and repeat.
+      - Make sure to focus your movements on your big toe.
+
+  - id: PS-B-14
+    name: Long Sitting Ankle Inversion with Resistance
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin sitting upright on the floor with your legs crossed and a resistance band secured around one foot. The resistance band should be looped around the bottom of your other foot with the end held in your hand.
+      - Move the foot with the resistance band away from the other foot by rotating your ankle inward, then slowly return to the starting position and repeat.
+      - Make sure to avoid any hip movement.
+
+  - id: PS-B-15
+    name: Long Sitting Ankle Eversion with Resistance
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin sitting upright on the floor with a resistance band secured around one foot. The resistance band should be looped around the bottom of your other foot with the end held in your hand.
+      - Move the foot with the resistance band away from the other foot by rotating your ankle outward, then slowly return to the starting position and repeat.
+      - Make sure to avoid any hip movement.
+
+  - id: PS-B-16
+    name: Seated Calf Raise with Weights on Thighs On Step
+    sets: 2
+    reps: 10
+    hold:
+    steps:
+      - Begin sitting upright on a bench holding a dumbbell across your thighs (no weight yet). Have a low step (or foam pad) placed under the balls of your feet.
+      - Slowly raise both heels at the same time. Then, lower them down to the starting position. Repeat.
+      - Make sure to keep the balls of your feet in contact with the step throughout the exercise. Raise your heels as high as possible.
 
 routines:
-  - id: r1
-    name: Morning Mobility
-    exercises: [e1, e3, e4]
+  - id: r-allison-back
+    name: Allison - Back
+    exercises: [PS-A-1, PS-A-2, PS-A-3, PS-A-4, PS-A-5, PS-A-6, PS-A-7, PS-A-8, PS-A-9, PS-A-10]
 
-  - id: r2
-    name: Knee Rehab — Lower
-    exercises: [e1, e2, e3, e5]
+  - id: r-prosports-neck
+    name: Prosports - Neck
+    exercises: [PS-N-1, PS-N-2, PS-N-3, PS-N-4, PS-N-5, PS-N-6, PS-N-7, PS-N-8, PS-N-9, PS-N-10, PS-N-11, PS-N-12]
 
-  - id: r3
-    name: Full Routine
-    exercises: [e1, e2, e3, e4, e5]
+  - id: r-prosports-back
+    name: Prosports - Back
+    exercises: [PS-B-1, PS-B-2, PS-B-3, PS-B-4, PS-B-5, PS-B-6, PS-B-7, PS-B-8, PS-B-9, PS-B-10, PS-B-11, PS-B-12, PS-B-13, PS-B-14, PS-B-15, PS-B-16]

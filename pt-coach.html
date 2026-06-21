@@ -420,7 +420,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v12';
+const APP_VERSION = 'v13';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -558,8 +558,8 @@ function presentCurrentExercise(){
   const stats = document.getElementById('exStats');
   stats.innerHTML = '';
   const pills = [
-    {label:'Sets', val: ex.sets},
-    {label:'Reps', val: ex.reps},
+    {label:'Sets', val: ex.sets || '—'},
+    {label:'Reps', val: ex.reps || '—'},
     {label:'Hold', val: ex.hold ? ex.hold + 's' : '—'}
   ];
   pills.forEach(p=>{
@@ -583,7 +583,11 @@ function presentCurrentExercise(){
 function buildSpokenText(ex){
   let txt = `${ex.name}. `;
   ex.steps.forEach((s,i)=>{ txt += `Step ${i+1}: ${s} `; });
-  txt += `Do ${ex.sets} sets of ${ex.reps} reps`;
+  if(ex.reps){
+    txt += `Do ${ex.sets} sets of ${ex.reps} reps`;
+  }else{
+    txt += `Do ${ex.sets} ${ex.sets == 1 ? 'set' : 'sets'}`;
+  }
   if(ex.hold && ex.hold > 1){ txt += `, holding each for ${ex.hold} seconds`; }
   txt += `.`;
   return txt;
@@ -799,7 +803,7 @@ function renderManageList(){
       card.innerHTML = `
         <div>
           <div class="iname">${escapeHtml(ex.name)}</div>
-          <div class="isub">${ex.sets} sets · ${ex.reps} reps${ex.hold?' · '+ex.hold+'s hold':''}</div>
+          <div class="isub">${ex.sets} sets${ex.reps ? ' · '+ex.reps+' reps' : ''}${ex.hold?' · '+ex.hold+'s hold':''}</div>
         </div>
         <div class="item-actions"><div class="small-icon">›</div></div>`;
       listEl.appendChild(card);
@@ -838,8 +842,8 @@ function viewExercise(id){
       </div>
     </div>
     <div class="row3" style="margin-top:16px;">
-      <div class="stat-pill"><span class="stat-label">Sets</span>${ex.sets}</div>
-      <div class="stat-pill"><span class="stat-label">Reps</span>${ex.reps}</div>
+      <div class="stat-pill"><span class="stat-label">Sets</span>${ex.sets || '—'}</div>
+      <div class="stat-pill"><span class="stat-label">Reps</span>${ex.reps || '—'}</div>
       <div class="stat-pill"><span class="stat-label">Hold</span>${ex.hold?ex.hold+'s':'—'}</div>
     </div>
     <p class="tap-hint" style="text-align:left; margin-top:18px;">
