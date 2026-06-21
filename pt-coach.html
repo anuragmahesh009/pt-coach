@@ -192,6 +192,25 @@
   .sess-controls{
     display:flex; gap:10px; width:100%; max-width:480px;
   }
+  .media-controls{
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    margin: 6px 0 14px;
+  }
+  .media-btn{
+    width:52px; height:52px; border-radius:50%;
+    background:var(--bg-raised); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text); cursor:pointer;
+  }
+  .media-btn:active{ transform:scale(0.92); }
+  .media-btn.primary{
+    width:64px; height:64px;
+    background:var(--accent-go-soft); border:1.5px solid var(--accent-go);
+    color:var(--accent-go);
+  }
+  .media-btn.disabled{
+    opacity:0.35; pointer-events:none;
+  }
   .rate-control{
     width:100%; max-width:480px; margin: 4px 0 2px;
   }
@@ -350,9 +369,20 @@
         <label for="rateSlider">Speed: <span id="rateLabel">0.65</span></label>
         <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.65" oninput="onRateSliderChange(this.value)">
       </div>
+      <div class="media-controls" onclick="event.stopPropagation()">
+        <div class="media-btn" id="prevBtn" onclick="manualPrev()">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 6h2v12H6zM20 6L9 12l11 6z" fill="currentColor"/></svg>
+        </div>
+        <div class="media-btn primary" id="pausePlayBtn" onclick="togglePausePlay()">
+          <svg id="pauseIcon" viewBox="0 0 24 24" width="26" height="26"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>
+          <svg id="playIcon" viewBox="0 0 24 24" width="26" height="26" style="display:none;"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>
+        </div>
+        <div class="media-btn" id="nextBtn" onclick="manualNext()">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M16 6h2v12h-2zM4 6l11 6-11 6z" fill="currentColor"/></svg>
+        </div>
+      </div>
       <div class="sess-controls" onclick="event.stopPropagation()">
         <div class="control-btn" onclick="repeatCurrent()">Repeat</div>
-        <div class="control-btn next" onclick="manualNext()">Next →</div>
         <div class="control-btn stop" onclick="endSession()">End</div>
       </div>
     </div>
@@ -391,7 +421,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v10';
+const APP_VERSION = 'v11';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -520,6 +550,9 @@ function startSession(routineId){
 }
 
 function presentCurrentExercise(){
+  resetPausePlayIcon();
+  const prevBtn = document.getElementById('prevBtn');
+  if(prevBtn) prevBtn.classList.toggle('disabled', session.index === 0);
   const ex = session.exercises[session.index];
   document.getElementById('sessProgress').textContent =
     `Exercise ${session.index+1} of ${session.exercises.length}`;
@@ -560,6 +593,7 @@ function buildSpokenText(ex){
 }
 
 function repeatCurrent(){
+  resetPausePlayIcon();
   const ex = session.exercises[session.index];
   speakExercise(ex);
 }
@@ -575,9 +609,48 @@ function advanceExercise(){
   }else{
     finishSession();
   }
-  setTimeout(()=>{ advanceInFlight = false; }, 600);
+  setTimeout(()=>{ advanceInFlight = false; }, 300);
 }
 function manualNext(){ advanceExercise(); }
+
+function manualPrev(){
+  if(!session) return;
+  if(advanceInFlight) return;
+  if(session.index === 0) return; // already at the first exercise
+  advanceInFlight = true;
+  session.index--;
+  presentCurrentExercise();
+  setTimeout(()=>{ advanceInFlight = false; }, 300);
+}
+
+// Pause/resume speech mid-sentence. The Web Speech API's pause/resume can be
+// a little inconsistent across browsers, so we guard with try/catch and
+// always keep the on-screen icon in sync with what we asked it to do.
+function resetPausePlayIcon(){
+  const pauseIcon = document.getElementById('pauseIcon');
+  const playIcon = document.getElementById('playIcon');
+  if(pauseIcon) pauseIcon.style.display = '';
+  if(playIcon) playIcon.style.display = 'none';
+}
+
+function togglePausePlay(){
+  if(!('speechSynthesis' in window)) return;
+  const pauseIcon = document.getElementById('pauseIcon');
+  const playIcon = document.getElementById('playIcon');
+  try{
+    if(window.speechSynthesis.speaking && !window.speechSynthesis.paused){
+      window.speechSynthesis.pause();
+      if(pauseIcon) pauseIcon.style.display = 'none';
+      if(playIcon) playIcon.style.display = '';
+    }else if(window.speechSynthesis.paused){
+      window.speechSynthesis.resume();
+      if(pauseIcon) pauseIcon.style.display = '';
+      if(playIcon) playIcon.style.display = 'none';
+    }
+  }catch(e){
+    console.warn('Pause/resume not supported as expected:', e);
+  }
+}
 
 function finishSession(){
   speak("Great work. That's the full routine complete.", ()=>{
