@@ -330,6 +330,11 @@
 </head>
 <body>
 <div id="app">
+  <div id="rotateOverlay" style="position:fixed; inset:0; background:var(--bg); z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:30px;">
+    <div style="font-size:48px; margin-bottom:16px;">📱</div>
+    <div style="font-size:18px; font-weight:600; color:var(--text); margin-bottom:6px;">This app works best in portrait</div>
+    <div style="font-size:14px; color:var(--text-dim);">Please rotate your phone back upright.</div>
+  </div>
 
   <!-- HOME -->
   <div class="screen active" id="home">
@@ -342,8 +347,8 @@
       <h2>Which routine<br/>are we doing?</h2>
     </div>
     <div class="rate-control" style="padding:0 4px; margin-bottom:14px;">
-      <label for="rateSlider">Speed: <span id="rateLabel">0.65</span></label>
-      <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.65" oninput="onRateSliderChange(this.value)">
+      <label for="rateSlider">Speed: <span id="rateLabel">0.70</span></label>
+      <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.70" oninput="onRateSliderChange(this.value)">
     </div>
     <div class="routine-list" id="routineList"></div>
   </div>
@@ -420,7 +425,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v13';
+const APP_VERSION = 'v14';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -532,6 +537,50 @@ function renderHome(){
 /* ===================== SESSION STATE ===================== */
 let session = null; // { routine, exercises:[...], index }
 
+/* ===================== ORIENTATION ===================== */
+// Safari on iOS doesn't let a webpage force portrait orientation, so instead
+// we detect landscape and show a friendly "please rotate back" message.
+function checkOrientation(){
+  const overlay = document.getElementById('rotateOverlay');
+  if(!overlay) return;
+  const isLandscape = window.innerWidth > window.innerHeight;
+  overlay.style.display = isLandscape ? 'flex' : 'none';
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', checkOrientation);
+
+/* ===================== WAKE LOCK ===================== */
+// Keeps the screen from auto-locking while a PT session is active.
+// Support varies by iOS version; if unavailable, the app still works,
+// it just won't be able to prevent the screen from sleeping.
+let wakeLock = null;
+
+async function acquireWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+  }catch(e){
+    console.warn('Wake Lock request failed:', e);
+  }
+}
+
+function releaseWakeLock(){
+  if(wakeLock){
+    try{ wakeLock.release(); }catch(e){}
+    wakeLock = null;
+  }
+}
+
+// Wake Lock is automatically released by the browser when the tab/app goes
+// to the background. If the person returns to the app mid-session, try to
+// re-acquire it so the screen still won't lock for the rest of the routine.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && session && !wakeLock){
+    acquireWakeLock();
+  }
+});
+
 function startSession(routineId){
   const routine = DATA.routines.find(r=>r.id===routineId);
   if(!routine) return;
@@ -543,6 +592,7 @@ function startSession(routineId){
   session = { routine, exercises, index:0 };
   goTo('session');
   unlockSpeech();
+  acquireWakeLock();
   presentCurrentExercise();
 }
 
@@ -582,7 +632,7 @@ function presentCurrentExercise(){
 
 function buildSpokenText(ex){
   let txt = `${ex.name}. `;
-  ex.steps.forEach((s,i)=>{ txt += `Step ${i+1}: ${s} `; });
+  ex.steps.forEach((s)=>{ txt += `${s} `; });
   if(ex.reps){
     txt += `Do ${ex.sets} sets of ${ex.reps} reps`;
   }else{
@@ -654,6 +704,7 @@ function togglePausePlay(){
 }
 
 function finishSession(){
+  releaseWakeLock();
   speak("Great work. That's the full routine complete.", ()=>{
     setTimeout(()=>{ session=null; goTo('home'); }, 600);
   });
@@ -666,6 +717,7 @@ function finishSession(){
 
 function endSession(){
   if(window.speechSynthesis) window.speechSynthesis.cancel();
+  releaseWakeLock();
   session = null;
   goTo('home');
 }
@@ -740,7 +792,7 @@ function setSpeakingVisual(isSpeaking){
 // Speaking rate is controlled by a non-persistent in-session slider on the
 // session screen. It always resets to DEFAULT_SPEECH_RATE when the app starts
 // or a new session begins — it deliberately does not save between sessions.
-const DEFAULT_SPEECH_RATE = 0.65;
+const DEFAULT_SPEECH_RATE = 0.70;
 let currentSpeechRate = DEFAULT_SPEECH_RATE;
 
 function onRateSliderChange(value){
@@ -913,6 +965,7 @@ async function initApp(){
   }
 }
 initApp();
+checkOrientation();
 </script>
 </body>
 </html>
