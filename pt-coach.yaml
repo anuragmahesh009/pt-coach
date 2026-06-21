@@ -13,7 +13,7 @@
 exercises:
   - id: e1
     name: Glute Bridge
-    sets: 3
+    sets: 100
     reps: 12
     hold: 2
     steps:
