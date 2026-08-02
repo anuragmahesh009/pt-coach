@@ -13,11 +13,340 @@
 #   program3.pdf (10 exercise pages, prepared by David Watson)     -> PS-B -> routine "Prosports - Back"
 
 exercises:
+
+  - id: EX-01
+    name: Full Body Stretch
+    sets: 1
+    reps: 3
+    hold: null
+    steps:
+      - Lie on your back on the mat.
+      - Stretch your arms overhead and reach your legs in the opposite direction with toes pointed away to extend the full body.
+      - Relax the upper body and arms while flexing your toes back toward your nose, letting your lower body, knees, and hips sink into the mat.
+
+  - id: EX-02
+    name: Toe Scrunch and Splay
+    sets: 1
+    reps: 5
+    hold: 2
+    steps:
+      - Lie on your back with legs extended.
+      - Alternately splay your toes wide and scrunch them tight.
+      - Hold each position for 2 seconds.
+
+  - id: EX-03
+    name: Ankle Rotations
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Rotate your ankles in a smooth circle 5 times clockwise.
+      - Reverse direction and rotate 5 times counter-clockwise.
+
+  - id: EX-04
+    name: Feet Windshield Wipers with Edge Hold
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Place your feet towards the outer edges of the mat.
+      - Swivel your feet side-to-side like windshield wipers.
+      - Hold the stretch briefly at the end of each motion.
+
+  - id: EX-05
+    name: Lying Hip Cars
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Lie straight on your back.
+      - Perform 5 circles in one direction, then 5 in the opposite direction.
+      - Repeat on the other leg.
+
+  - id: EX-06
+    name: Cooldown Leg Shake or Windshield Wipers
+    sets: 1
+    reps: 4
+    hold: null
+    steps:
+      - Shake your legs out or gently sway your knees side-to-side to relax the hip joint after strenuous movement.
+
+  - id: EX-07
+    name: Straight Leg Raises (Toes Flexed)
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Lie on your back with legs extended hip-width apart and knees pressed down firmly.
+      - Flex your toes toward your nose to keep the calf and leg fully engaged.
+      - Raise one leg up to 60 degrees while keeping it stiff, then lower it back down.
+      - Straighten the knee at the bottom before lifting again. Repeat on both sides.
+
+  - id: EX-08
+    name: Wide-Stance Straight Leg Raises
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Position your heels out near the edges of the mat.
+      - Keep your legs stiff with toes flexed toward your nose.
+      - Perform straight leg raises up to 60 degrees from this wider stance.
+
+  - id: EX-09
+    name: Half Butterfly Stretch
+    sets: 1
+    reps: 3
+    hold: 2
+    steps:
+      - Lie down with both knees bent and feet flat on the floor.
+      - Let one knee drop out to the side toward the floor while keeping the other knee bent.
+      - Hold the stretch to allow the hip to open, then return to center and repeat on the opposite side.
+      - Progressive note: Can advance to Full Butterfly and do flaps once hips are warmed up.
+
+  - id: EX-10
+    name: 90/90 Supine Knee Drops
+    sets: 1
+    reps: 3
+    hold: 2
+    steps:
+      - Place your feet flat at the outer edges of the mat with knees bent.
+      - Lower both knees together toward one side, holding the stretch at the end range.
+      - Alternate sides for 3 holds in each direction.
+
+  - id: EX-11
+    name: Figure-4 Knee Press & Pull
+    sets: 1
+    reps: 1
+    hold: null
+    steps:
+      - Lie on your back, cross your left ankle over your right knee.
+      - Push the left knee away using its own muscle strength (without using hands) and hold.
+      - Next, gently pull that left knee toward your right shoulder/armpit and hold for a few seconds.
+
+  - id: EX-12
+    name: Figure-4 Piriformis Squeeze & Release
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Maintaining the Figure-4 leg position, draw the bottom leg in toward your chest on an exhale.
+      - Release slightly on the inhale.
+      - Repeat 5 times, pulling slightly closer with each breath.
+
+  - id: EX-13
+    name: Figure-4 Side-to-Side Drops
+    sets: 1
+    reps: 3
+    hold: null
+    steps:
+      - Keep shoulders flat on the floor and extend arms out to the sides.
+      - Drop your crossed legs to the right, using your right hand to gently guide the left knee down. Hold at the end.
+      - Drop legs to the left side (letting the uncrossed leg assist pulling the knee down). Hold at the end.
+      - Repeat the full sequence on the opposite leg.
+
+  - id: EX-14
+    name: Glute Bridges with Top Hold
+    sets: 1
+    reps: 10
+    hold: null
+    steps:
+      - Bend knees with feet flat on the floor close to your glutes.
+      - Inhale going down; exhale as you lift your hips up into a bridge.
+      - Engage your core and hold at the top position.
+      - Progression note: Add marching in place at the top of the bridge position once strength improves.
+
+  - id: EX-15
+    name: Figure-4 Glute Bridges
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Cross one ankle over the opposite knee.
+      - Press the active knee outward under its own power.
+      - Drive through the planted foot to lift hips into a bridge. Repeat 5 times per side.
+
+  - id: EX-16
+    name: Ardha Pawanmuktasana (Single Knee-to-Chest)
+    sets: 1
+    reps: 2
+    hold: null
+    steps:
+      - Extend one leg straight along the floor.
+      - Pull the opposite knee up toward your chest/armpit.
+      - Hold the stretch, relax, and repeat twice on each side.
+
+  - id: EX-17
+    name: Happy Baby Pose
+    sets: 1
+    reps: 10
+    hold: null
+    steps:
+      - Lie on your back, bend knees toward your chest, and grip the outside edges of your feet or ankles.
+      - Keep your lower back grounded as you gently pull knees down toward the floor.
+
+  - id: EX-18
+    name: Leg Circles & Rainbow Arc Swings
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Raise one leg straight up with foot flexed/pointed to warm up the hip.
+      - Perform 5 small circles clockwise, then 5 counter-clockwise.
+      - Move the leg left and right in a rainbow shape, hold at the ends.
+
+  - id: EX-19
+    name: Dead Bug (Hover Variation)
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Lie on your back with arms reaching up and knees bent in a 90-degree tabletop position.
+      - Tighten your core and extend opposite arm and leg away from each other.
+      - Hover both arm and foot just above the floor without touching down.
+      - Return to center and alternate sides for 5 repetitions each.
+
+  - id: EX-20
+    name: Heel Slides
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Lie flat on your back with legs extended.
+      - Slowly slide one heel along the mat toward your buttocks, bending the knee, then slide it back out straight.
+      - Alternate legs or perform 5 reps per side.
+
+  - id: EX-26
+    name: Side-Lying Clamshells
+    sets: 1
+    reps: 10
+    hold: null
+    steps:
+      - Lie on one side with knees bent at a 90-degree angle and hips stacked.
+      - Engage your core and perform a subtle pelvic tilt, keeping your front hip rolled slightly forward so it does not open or roll backward.
+      - Keep feet together as you raise your top knee up, then slowly lower.
+      - Repeat 10 times per side (resistance band optional).
+
+  - id: EX-27
+    name: Side-Lying Straight Leg Raise with Heel Twist
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Lie on your side with the bottom leg slightly bent for stability and top leg extended straight.
+      - Lift the top leg straight up while internally rotating the hip so your heel points upward and toes point slightly down.
+      - Return the foot to a neutral position as you lower it back down.
+      - Perform 5 reps per side.
+
+  - id: EX-28
+    name: Inner Thigh Lift (Adductor Lift)
+    sets: 1
+    reps: 10
+    hold: null
+    steps:
+      - Lie on your right side with right leg extended straight on the ground.
+      - Cross your left (top) leg over, placing the left foot flat on the floor in front of you (or supported on a foam roller) to clear space.
+      - Lift your straight bottom (right) leg up off the mat in a small, controlled motion, twisting your heel upward as it lifts.
+      - Lower back down to neutral. Perform 10 reps, then switch sides.
+
+  - id: EX-29
+    name: Side-Lying Open Book (Thoracic Rotation)
+    sets: 1
+    reps: 10
+    hold: 2
+    steps:
+      - Lie on your side with arms extended straight out in front at chest height (palms touching).
+      - Rest your top bent knee over a foam roller or pillow in front of you for support.
+      - Sweep your top arm open in an arc across your chest to the opposite side, keeping your eyes on your fingertips.
+      - Ensure your top knee/foot remains grounded on the roller/floor throughout the twist.
+      - Pause briefly at the open end range, then return. Perform 10 reps per side.
+
+  - id: EX-30
+    name: Sphinx Pose
+    sets: 1
+    reps: 5
+    hold: 5
+    steps:
+      - Lie flat on your stomach with forehead resting on your hands for a few deep breaths.
+      - Prop up onto your forearms into a Sphinx pose.
+      - Inhale and puff your chest forward while looking straight ahead (keeping gaze level, not straining neck up).
+      - Exhale to relax. Perform 5 small chest-puffing reps, then hold the position for a 5-count.
+
+  - id: EX-31
+    name: Ardha Shalabhasana
+    sets: 1
+    reps: 5
+    hold: 2
+    steps:
+      - Lie flat on your stomach with hands placed under your thighs/groin for support.
+      - Keeping your leg completely straight, lift one leg upward without letting that hip peel off the floor.
+      - Lower back down and alternate legs for 5 full rounds.
+      - Hold the final repetition extra for a few seconds.
+
+  - id: EX-32
+    name: Airplane Arms & Leg Lift
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Lie on your stomach with arms extended out to the sides like airplane wings.
+      - Lift your chest, arms, and straight legs up slightly off the mat, squeezing your shoulder blades together.
+      - Hold briefly at the top before lowering down.
+
+  - id: EX-33
+    name: Dynamic Child's Pose to Modified Upward Dog
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Begin in Child's Pose, sitting hips back toward heels with arms extended out in front.
+      - Keeping hands planted in place, dynamically shift your body forward and drop hips down toward the floor into a modified Upward Dog (knees remaining on the mat, palms directly under shoulders).
+      - Flow back and forth between Child's Pose and Upward Dog in a continuous motion.
+
+  # -----------------------------------------------------------------------
+
+  - id: EX-34
+    name: Cat-Cow Stretch
+    sets: 1
+    reps: 5
+    hold: null
+    steps:
+      - Move onto all fours (tabletop position) with wrists under shoulders and knees under hips.
+      - Inhale, arch your back, and lift your chest/tailbone (Cow).
+      - Exhale, round your spine toward the ceiling, and tuck your chin (Cat).
+
+  - id: EX-35
+    name: Kneeling Backbend
+    sets: 1
+    reps: 3
+    hold: null
+    steps:
+      - Come to a tall kneeling position on your knees.
+      - Place hands on your lower back/hips and gently arch backward within a comfortable range of motion.
+
+  - id: EX-36
+    name: Low Lunge
+    sets: 1
+    reps: 3
+    hold: 15
+    steps:
+      - From kneeling, step one foot forward into a half-kneeling lunge position (use yoga blocks under hands for support if needed).
+      - Shift your hips forward and backward slightly to feel the stretch in the front hip flexor/groin.
+      - Maintain an upright torso before switching sides.
+
+  - id: EX-37
+    name: Downward-Facing Dog to Standing Transition
+    sets: 1
+    reps: 1
+    hold: 10
+    steps:
+      - Tuck toes and lift hips high into Downward-Facing Dog, pressing hands into the mat and pedaling feet if desired.
+      - Walk hands back toward your feet and slowly roll up to standing position.
+
   # ---- program1.pdf: Allison - Back (PS-A) ----
   - id: PS-A-1
     name: Supine Leg Raise with Strap
     sets: 3
-    reps:
+    reps: null
     hold: 30
     steps:
       - Begin lying on your back with your legs straight, holding the end of a strap that is looped around one foot.
@@ -27,7 +356,7 @@ exercises:
   - id: PS-A-2
     name: Supine Piriformis Stretch with Leg Straight
     sets: 3
-    reps:
+    reps: null
     hold: 30
     steps:
       - Begin by lying on your back with your legs straight.
@@ -37,7 +366,7 @@ exercises:
   - id: PS-A-3
     name: Supine Quadriceps Stretch with Strap on Table
     sets: 3
-    reps:
+    reps: null
     hold: 30
     steps:
       - Begin lying on your back on a table or bed with one leg hanging off the edge, holding the end of a strap that is draped over your shoulder and secured around your foot.
@@ -68,7 +397,7 @@ exercises:
     name: Supine March with Band
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back with your knees bent, feet resting on the floor, and a resistance band or loop secured around your legs.
       - Tighten your abdominals and slowly raise one of your legs off the floor, keeping your knee bent. Then return to the starting position and repeat with your other leg.
@@ -78,7 +407,7 @@ exercises:
     name: Supine Isometric Clamshell with Band
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin by lying on your back with your knees bent and feet resting on the floor, with a resistance band or loop secured around your knees.
       - Keep one leg stationary as you draw your other leg outward, and hold.
@@ -88,7 +417,7 @@ exercises:
     name: Supine Shoulder Horizontal Abduction with Resistance
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back with your knees bent and the ends of a resistance band in each hand. Your arms should be straight up toward the ceiling.
       - Pull your arms apart against the resistance band, straight out to your sides, then slowly bring them back to the starting position and repeat.
@@ -98,7 +427,7 @@ exercises:
     name: Supine Shoulder External Rotation with Resistance
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back holding the ends of a resistance band in each hand.
       - Rotate your hands outward, keeping your elbows bent and pulling the band apart.
@@ -107,7 +436,7 @@ exercises:
   - id: PS-A-10
     name: Standing Tandem Balance with Counter Support
     sets: 3
-    reps:
+    reps: null
     hold: 30
     steps:
       - Begin in a standing upright position with your hands resting on a counter.
@@ -118,7 +447,7 @@ exercises:
     name: Standing Hip Abduction with Resistance at Ankles and Counter Support
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin in a standing upright position with your hands resting on a counter in front of you and a resistance band looped around your ankles.
       - Shift your weight to one side and pick the other foot up, pushing against the resistance. Hold briefly, then slowly return to the starting position and repeat leaning to the other side.
@@ -127,7 +456,7 @@ exercises:
   - id: PS-A-12
     name: Long Sitting Calf Stretch with Strap
     sets: 3
-    reps:
+    reps: null
     hold: 30
     steps:
       - Begin sitting on the floor with one foot stretched in front of you, your other knee bent, and a strap secured around your foot.
@@ -138,7 +467,7 @@ exercises:
     name: Great Toe Flexion with Resistance
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin sitting in an upright position on the floor with a resistance band looped vertically along your foot, under your heel and over your toes, holding the ends in your hand.
       - Push your big toe forward against the resistance band, then bring it back to the starting position and repeat.
@@ -148,7 +477,7 @@ exercises:
     name: Long Sitting Ankle Inversion with Resistance
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin sitting upright on the floor with your legs crossed and a resistance band secured around one foot. The resistance band should be looped around the bottom of your other foot with the end held in your hand.
       - Move the foot with the resistance band away from the other foot by rotating your ankle inward, then slowly return to the starting position and repeat.
@@ -158,7 +487,7 @@ exercises:
     name: Long Sitting Ankle Eversion with Resistance
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin sitting upright on the floor with a resistance band secured around one foot. The resistance band should be looped around the bottom of your other foot with the end held in your hand.
       - Move the foot with the resistance band away from the other foot by rotating your ankle outward, then slowly return to the starting position and repeat.
@@ -168,7 +497,7 @@ exercises:
     name: Seated Calf Raise with Weights on Thighs On Step
     sets: 2
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin sitting upright on a bench holding a dumbbell across your thighs (no weight yet). Have a low step (or foam pad) placed under the balls of your feet.
       - Slowly raise both heels at the same time. Then, lower them down to the starting position. Repeat.
@@ -219,7 +548,7 @@ exercises:
     name: Standing Shoulder Row with Anchored Resistance
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin standing upright, holding both ends of a resistance band that is anchored in front of you at chest height, with your palms facing inward.
       - Pull your arms back with your elbows tucked at your sides, then return to the starting position and repeat.
@@ -229,7 +558,7 @@ exercises:
     name: Shoulder Extension with Resistance - Neutral
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin standing upright with your arms straight forward and palms facing inward, holding the ends of a resistance band that is anchored overhead in front of you.
       - Pull your arms down to your sides, squeezing your shoulder blades together. Then bring them back up to the starting position and repeat.
@@ -249,7 +578,7 @@ exercises:
     name: Sidelying Open Book Thoracic Rotation with Knee on Foam Roll
     sets: 2
     reps: 15
-    hold:
+    hold: null
     steps:
       - Begin lying on your side with your bottom leg straight, and your top leg bent at 90 degrees, resting on a foam roll. Your arms should be straight and together in front of you on the ground.
       - Slowly move your top arm away from your other arm, bringing it to the floor behind you, and rotating your upper trunk. Next, bring your arms back together, and repeat.
@@ -279,7 +608,7 @@ exercises:
     name: Supine Bridge
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back with your arms resting at your sides, your legs bent at the knees and your feet flat on the ground.
       - Tighten your abdominals and slowly lift your hips off the floor into a bridge position, keeping your back straight.
@@ -289,7 +618,7 @@ exercises:
     name: Dead Bug
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back with your legs bent.
       - Lift your legs and arms off the ground, keeping your knees bent. Lower one arm to the ground and lower your opposite leg at the same time. Repeat with your opposite arm and leg, then continue this movement.
@@ -340,7 +669,7 @@ exercises:
     name: Hip Extension with Resistance Loop
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin in a standing upright position with a resistance band looped around your ankles, holding a stable object for balance.
       - Lift one leg backward, keeping your knee straight. Then bring it back to the starting position and repeat.
@@ -350,7 +679,7 @@ exercises:
     name: Hip Abduction with Resistance Loop
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin in a standing upright position with a resistance band looped around your ankles, holding a stable object for balance.
       - Lift one leg to your side, keeping your knee straight. Return to the starting position and repeat.
@@ -360,7 +689,7 @@ exercises:
     name: Supine Bridge with Resistance Band
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back with your arms laying at your sides, your legs bent at the knees and your feet flat on the ground, with a resistance band secured around your legs.
       - Maintaining tension in the resistance band, tighten your abdominals and slowly lift your hips off the floor into a bridge position, keeping your back straight.
@@ -380,7 +709,7 @@ exercises:
     name: Supine Lower Trunk Rotation
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Begin lying on your back with your feet flat on the floor and your arms straight out to your sides.
       - Lower your knees to one side, return to center, and repeat on the other side.
@@ -390,13 +719,22 @@ exercises:
     name: Supine 90/90 Alternating Toe Touch
     sets: 3
     reps: 10
-    hold:
+    hold: null
     steps:
       - Lie on your back with your knees bent.
       - Lift your legs off the ground to form a 90 degree angle. Slowly lower one leg, touching your toes to the floor, then return to the starting position and repeat with the opposite leg.
       - Do not allow your low back to arch during the exercise.
 
 routines:
+
+  - id: r-bhanu-back
+    name: Bhanu - Back
+    exercises: [EX-01, EX-02, EX-03, EX-04, EX-05, EX-06, EX-07, EX-08, EX-09, EX-10, EX-11, EX-12, EX-13, EX-14, EX-15, EX-16, EX-17, EX-18, EX-19, EX-20]
+
+  - id: r-bhanu-side-prone-getup
+    name: Bhanu - Side,Prone,GetUp
+    exercises: [EX-26, EX-27, EX-28, EX-29, EX-30, EX-31, EX-32, EX-33, EX-34, EX-35, EX-36, EX-37]
+
   - id: r-allison-back
     name: Allison - Back
     exercises: [PS-A-1, PS-A-2, PS-A-4, PS-A-5, PS-A-6, PS-A-7, PS-A-8, PS-A-9, PS-A-10, PS-A-11, PS-A-12]
