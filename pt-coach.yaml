@@ -726,8 +726,7 @@ exercises:
       - Do not allow your low back to arch during the exercise.
 
   # ---- YouTube: Dr. Andrea Furlan - Lumbar Spinal Stenosis ----
-  # Instructions closely follow the video's exercise cues, with brief added
-  # safety cues for neutral-to-flexion-biased movement and symptom monitoring.
+  # Concise voice-follow-along cues. Sets/reps/holds come from metadata.
 
   - id: SS_EX_1
     name: Stationary Bike or Chair Cycle
@@ -735,10 +734,9 @@ exercises:
     reps: 1
     hold: 300
     steps:
-      - Use a stationary bike or chair cycle at an easy, comfortable pace.
-      - A slight forward bend is okay and is often comfortable with spinal stenosis.
-      - Start with 5 minutes. Progress to 10, 20, then 30 minutes as tolerated.
-      - Stop or ease off if leg pain, tingling, numbness, or heaviness clearly increases.
+      - Pedal at an easy, comfortable pace.
+      - A slight forward bend is fine.
+      - Stop if leg pain, tingling, numbness, or heaviness clearly increases.
 
   - id: SS_EX_2
     name: Pelvic Tilt on the Wall
@@ -746,10 +744,9 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Stand with your back against a wall or door and bend your knees slightly.
-      - Tuck your navel in and gently tilt your pelvis so your lower back moves toward the wall.
-      - Release, then repeat the tuck-and-release motion smoothly.
-      - Keep the movement gentle and comfortable; do not force your back into pain.
+      - Stand with your back against a wall and knees slightly bent.
+      - Gently tuck your pelvis so your lower back moves toward the wall.
+      - Release and repeat smoothly.
 
   - id: SS_EX_3
     name: Cat-Cow
@@ -757,11 +754,10 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Start on your hands and knees.
-      - For Cow, gently let your spine move downward and look slightly up.
-      - For Cat, look down and round your lower back upward, drawing your navel in.
-      - Alternate slowly. Keep the Cow position small rather than forcing a deep back arch.
-      - Start with 8 repetitions. Progress to 12, then 20 as tolerated.
+      - Start on hands and knees.
+      - Gently let your spine move down for Cow.
+      - Then look down and round your lower back for Cat.
+      - Keep the Cow position small; do not force a deep back arch.
 
   - id: SS_EX_4
     name: Bird-Dog
@@ -769,12 +765,10 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Start on your hands and knees.
-      - Reach one arm and the opposite leg away from you, such as right arm and left leg.
-      - Reach long rather than high. Keep your head down and your trunk steady.
-      - Tighten your abdominal and glute muscles, then return and switch sides.
-      - If this is difficult, practice only the arms or only the legs first.
-      - Do 8 repetitions per side. Progress to 12, then 20.
+      - Start on hands and knees.
+      - Reach one arm and the opposite leg away from you.
+      - Reach long, not high, and keep your trunk steady.
+      - Return and switch sides.
 
   - id: SS_EX_5
     name: Curl-Up
@@ -782,11 +776,10 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Lie on your back with your knees bent.
-      - Reach your arms forward and lift your head and upper trunk from the mat.
-      - You do not need to sit all the way up. Lower back down and relax.
-      - Arms reaching forward is the easier version; use a harder arm position only as you get stronger.
-      - Start with 8 repetitions. Progress to 12, then 20.
+      - Lie on your back with knees bent.
+      - Reach your arms forward and lift your head and upper trunk.
+      - Lower back down with control.
+      - You do not need to sit all the way up.
 
   - id: SS_EX_6
     name: Dead Bug
@@ -794,12 +787,10 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Lie on your back with your arms raised and your hips and knees bent.
-      - Flatten your lower back against the mat and keep it there.
-      - Straighten one leg at a time without touching the floor, then return.
-      - As you progress, move the opposite arm and leg together.
-      - Use a smaller range if your lower back starts lifting from the mat.
-      - Start with 8 repetitions. Progress to 12, then 20.
+      - Lie on your back with arms up and hips and knees bent.
+      - Keep your lower back gently pressed into the mat.
+      - Straighten one leg, return, then switch.
+      - Keep the range small enough that your back stays down.
 
   - id: SS_EX_7
     name: Bridge
@@ -807,11 +798,10 @@ exercises:
     reps: 8
     hold: 10
     steps:
-      - Lie on your back with your knees bent, feet flat, and arms beside you.
-      - Raise your pelvis while tightening your abdominal and glute muscles.
-      - Lift only until your trunk and thighs form a comfortable straight line; do not over-arch your lower back.
-      - Hold for 10 seconds, then lower with control.
-      - Do 8 repetitions. As tolerated, the hold can progress toward 20 to 30 seconds.
+      - Lie on your back with knees bent and feet flat.
+      - Tighten your abdomen and glutes, then lift your hips.
+      - Stop at a comfortable straight line; do not over-arch your back.
+      - Lower with control.
 
   - id: SS_EX_8
     name: Pelvic Tilt Lying Down
@@ -819,11 +809,9 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Lie on your back with a pillow under your head, knees bent, and feet apart.
-      - Tilt your pelvis backward so your lower back moves toward the mat.
-      - Then gently tilt forward and return.
-      - Move slowly back and forth to improve lower-back mobility without forcing the range.
-      - Start with 8 repetitions. Progress to 12, then 20.
+      - Lie on your back with knees bent.
+      - Tilt your pelvis so your lower back moves toward the mat.
+      - Gently release and repeat.
 
   - id: SS_EX_9
     name: Hip Clam
@@ -831,11 +819,10 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Lie on your side with a pillow under your head, knees bent, and feet together.
-      - Keep your feet together and open the top knee like a clam.
-      - Keep your hips stacked and avoid rolling your pelvis backward.
-      - Lower with control. Do 8 repetitions, then turn over and repeat on the other side.
-      - Progress to 12, then 20 per side as tolerated.
+      - Lie on your side with knees bent and feet together.
+      - Keep your feet together and lift the top knee.
+      - Keep your hips stacked; do not roll backward.
+      - Lower with control.
 
   - id: SS_EX_10
     name: Side-Lying Leg Lift
@@ -843,12 +830,9 @@ exercises:
     reps: 8
     hold: null
     steps:
-      - Lie on your side with a pillow under your head.
-      - Bend the lower knee and keep the upper leg straight.
-      - Keep your body straight, your upper knee straight, and your toes pointing slightly down.
-      - Raise the upper leg in a controlled motion, then lower it.
-      - Do 8 repetitions, then turn over and repeat on the other side.
-      - Progress to 12, then 20 per side as tolerated.
+      - Lie on your side with the lower knee bent and top leg straight.
+      - Keep your top knee straight and toes slightly down.
+      - Lift the top leg, then lower with control.
 
 routines:
 
