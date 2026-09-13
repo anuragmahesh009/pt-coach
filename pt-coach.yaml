@@ -17,7 +17,7 @@ exercises:
   - id: EX-01
     name: Full Body Stretch
     sets: 1
-    reps: 3
+    reps: 8
     hold: null
     steps:
       - Lie on your back on the mat.
@@ -27,27 +27,27 @@ exercises:
   - id: EX-02
     name: Toe Scrunch and Splay
     sets: 1
-    reps: 5
+    reps: 8
     hold: 2
     steps:
       - Lie on your back with legs extended.
       - Alternately splay your toes wide and scrunch them tight.
-      - Hold each position for 2 seconds.
+
 
   - id: EX-03
     name: Ankle Rotations
     sets: 1
-    reps: 5
+    reps: 8
     hold: null
     steps:
-      - Rotate your ankles in a smooth circle 5 times clockwise.
-      - Reverse direction and rotate 5 times counter-clockwise.
+      - Rotate your ankles in a smooth circle  clockwise.
+      - Reverse direction and rotate  counter clockwise.
 
   - id: EX-04
     name: Feet Windshield Wipers with Edge Hold
     sets: 1
-    reps: 5
-    hold: null
+    reps: 8
+    hold: 5
     steps:
       - Place your feet towards the outer edges of the mat.
       - Swivel your feet side-to-side like windshield wipers.
@@ -60,13 +60,13 @@ exercises:
     hold: null
     steps:
       - Lie straight on your back.
-      - Perform 5 circles in one direction, then 5 in the opposite direction.
+      - Perform Hip-Car in one direction, then Hip-Car in the opposite direction.
       - Repeat on the other leg.
 
-  - id: EX-06
+  - id: EX-06-DEL
     name: Cooldown Leg Shake or Windshield Wipers
     sets: 1
-    reps: 4
+    reps: 8
     hold: null
     steps:
       - Shake your legs out or gently sway your knees side-to-side to relax the hip joint after strenuous movement.
@@ -74,7 +74,7 @@ exercises:
   - id: EX-07
     name: Straight Leg Raises (Toes Flexed)
     sets: 1
-    reps: 5
+    reps: 8
     hold: null
     steps:
       - Lie on your back with legs extended hip-width apart and knees pressed down firmly.
@@ -82,7 +82,7 @@ exercises:
       - Raise one leg up to 60 degrees while keeping it stiff, then lower it back down.
       - Straighten the knee at the bottom before lifting again. Repeat on both sides.
 
-  - id: EX-08
+  - id: EX-08-DEL
     name: Wide-Stance Straight Leg Raises
     sets: 1
     reps: 5
@@ -95,28 +95,28 @@ exercises:
   - id: EX-09
     name: Half Butterfly Stretch
     sets: 1
-    reps: 3
-    hold: 2
+    reps: 8
+    hold: 5
     steps:
       - Lie down with both knees bent and feet flat on the floor.
       - Let one knee drop out to the side toward the floor while keeping the other knee bent.
       - Hold the stretch to allow the hip to open, then return to center and repeat on the opposite side.
-      - Progressive note: Can advance to Full Butterfly and do flaps once hips are warmed up.
+#      - Progressive note: Can advance to Full Butterfly and do flaps once hips are warmed up.
 
   - id: EX-10
     name: 90/90 Supine Knee Drops
     sets: 1
-    reps: 3
-    hold: 2
+    reps: 8
+    hold: 5
     steps:
       - Place your feet flat at the outer edges of the mat with knees bent.
       - Lower both knees together toward one side, holding the stretch at the end range.
-      - Alternate sides for 3 holds in each direction.
+      - Do the same toward the other side
 
   - id: EX-11
     name: Figure-4 Knee Press & Pull
     sets: 1
-    reps: 1
+    reps: 5
     hold: null
     steps:
       - Lie on your back, cross your left ankle over your right knee.
@@ -126,7 +126,7 @@ exercises:
   - id: EX-12
     name: Figure-4 Piriformis Squeeze & Release
     sets: 1
-    reps: 5
+    reps: 8
     hold: null
     steps:
       - Maintaining the Figure-4 leg position, draw the bottom leg in toward your chest on an exhale.
@@ -136,8 +136,8 @@ exercises:
   - id: EX-13
     name: Figure-4 Side-to-Side Drops
     sets: 1
-    reps: 3
-    hold: null
+    reps: 5
+    hold: 5
     steps:
       - Keep shoulders flat on the floor and extend arms out to the sides.
       - Drop your crossed legs to the right, using your right hand to gently guide the left knee down. Hold at the end.
@@ -147,28 +147,28 @@ exercises:
   - id: EX-14
     name: Glute Bridges with Top Hold
     sets: 1
-    reps: 10
-    hold: null
+    reps: 8
+    hold: 5
     steps:
       - Bend knees with feet flat on the floor close to your glutes.
       - Inhale going down; exhale as you lift your hips up into a bridge.
       - Engage your core and hold at the top position.
-      - Progression note: Add marching in place at the top of the bridge position once strength improves.
+ #     - Progression note: Add marching in place at the top of the bridge position once strength improves.
 
   - id: EX-15
     name: Figure-4 Glute Bridges
     sets: 1
     reps: 5
-    hold: null
+    hold: 5
     steps:
       - Cross one ankle over the opposite knee.
       - Press the active knee outward under its own power.
-      - Drive through the planted foot to lift hips into a bridge. Repeat 5 times per side.
+      - Drive through the planted foot to lift hips into a bridge. Repeat on the other side
 
   - id: EX-16
-    name: Ardha Pawanmuktasana (Single Knee-to-Chest)
+    name: Single Knee-to-Chest
     sets: 1
-    reps: 2
+    reps: 5
     hold: null
     steps:
       - Extend one leg straight along the floor.
@@ -178,8 +178,8 @@ exercises:
   - id: EX-17
     name: Happy Baby Pose
     sets: 1
-    reps: 10
-    hold: null
+    reps: 1
+    hold: 20
     steps:
       - Lie on your back, bend knees toward your chest, and grip the outside edges of your feet or ankles.
       - Keep your lower back grounded as you gently pull knees down toward the floor.
@@ -188,16 +188,16 @@ exercises:
     name: Leg Circles & Rainbow Arc Swings
     sets: 1
     reps: 5
-    hold: null
+    hold: 5
     steps:
       - Raise one leg straight up with foot flexed/pointed to warm up the hip.
-      - Perform 5 small circles clockwise, then 5 counter-clockwise.
+      - Perform small circles clockwise, then counter-clockwise.
       - Move the leg left and right in a rainbow shape, hold at the ends.
 
   - id: EX-19
     name: Dead Bug (Hover Variation)
     sets: 1
-    reps: 5
+    reps: 8
     hold: null
     steps:
       - Lie on your back with arms reaching up and knees bent in a 90-degree tabletop position.
@@ -854,7 +854,7 @@ routines:
 
   - id: r-bhanu-back
     name: Bhanu - Back
-    exercises: [EX-01, EX-02, EX-03, EX-04, EX-05, EX-06, EX-07, EX-08, EX-09, EX-10, EX-11, EX-12, EX-13, EX-14, EX-15, EX-16, EX-17, EX-18, EX-19, EX-20]
+    exercises: [EX-01, EX-02, EX-03, EX-20, EX-04, EX-07, EX-09, EX-10, EX-11, EX-12, EX-13, EX-14, EX-15, EX-16, EX-17, EX-18, EX-19, EX-05]
 
   - id: r-bhanu-side-prone-getup
     name: Bhanu - Side,Prone,GetUp
