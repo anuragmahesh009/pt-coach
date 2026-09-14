@@ -402,14 +402,10 @@
     <p class="tap-hint" style="text-align:left; padding:0 4px 10px;">
       Read-only — edit pt-coach.yaml on GitHub to make changes.
     </p>
-    <div class="tabs">
-      <div class="tab active" id="tabExercises" onclick="switchManageTab('exercises')">Exercises</div>
-      <div class="tab" id="tabRoutines" onclick="switchManageTab('routines')">Routines</div>
-    </div>
     <div class="list-scroll" id="manageList"></div>
   </div>
 
-  <!-- DETAIL VIEW (exercise or routine, read-only) -->
+  <!-- DETAIL VIEW (routine, read-only) -->
   <div class="screen" id="editForm">
     <div class="topbar">
       <div class="iconbtn" onclick="goTo('manage')">‹</div>
@@ -425,7 +421,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v14';
+const APP_VERSION = 'v15';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -469,7 +465,7 @@ window.addEventListener('unhandledrejection', function(e){
 // same data (whatever's currently in the YAML file on GitHub).
 const DATA_FILE = 'pt-coach.yaml';
 
-let DATA = { exercises: [], routines: [] };
+let DATA = { routines: [] };
 let dataLoadError = null;
 
 async function loadData(){
@@ -480,23 +476,14 @@ async function loadData(){
     }
     const text = await res.text();
     const parsed = jsyaml.load(text);
-    if(!parsed || !Array.isArray(parsed.exercises) || !Array.isArray(parsed.routines)){
-      throw new Error(DATA_FILE + ' is missing "exercises" or "routines" lists.');
+    if(!parsed || !Array.isArray(parsed.routines)){
+      throw new Error(DATA_FILE + ' is missing a "routines" list.');
     }
-    // Normalize routine.exercises -> exerciseIds internally, to keep the
-    // rest of the app's logic (written before this YAML rework) unchanged.
-    DATA = {
-      exercises: parsed.exercises,
-      routines: parsed.routines.map(r => ({
-        id: r.id,
-        name: r.name,
-        exerciseIds: r.exercises || []
-      }))
-    };
+    DATA = { routines: parsed.routines };
     dataLoadError = null;
   }catch(e){
     dataLoadError = e.message;
-    DATA = { exercises: [], routines: [] };
+    DATA = { routines: [] };
   }
 }
 
@@ -519,14 +506,14 @@ function renderHome(){
     list.innerHTML = '<div class="empty-state">No routines yet.<br>Tap the gear icon to add one.</div>';
     return;
   }
-  DATA.routines.forEach(r=>{
+  DATA.routines.forEach((r, idx)=>{
     const card = document.createElement('div');
     card.className = 'routine-card';
-    card.onclick = ()=> startSession(r.id);
+    card.onclick = ()=> startSession(idx);
     card.innerHTML = `
       <div>
         <div class="rname">${escapeHtml(r.name)}</div>
-        <div class="rcount">${r.exerciseIds.length} exercise${r.exerciseIds.length===1?'':'s'}</div>
+        <div class="rcount">${r.exercises.length} exercise${r.exercises.length===1?'':'s'}</div>
       </div>
       <div class="arrow">▶</div>
     `;
@@ -581,12 +568,12 @@ document.addEventListener('visibilitychange', ()=>{
   }
 });
 
-function startSession(routineId){
-  const routine = DATA.routines.find(r=>r.id===routineId);
+function startSession(routineIdx){
+  const routine = DATA.routines[routineIdx];
   if(!routine) return;
-  const exercises = routine.exerciseIds.map(id=>DATA.exercises.find(e=>e.id===id)).filter(Boolean);
+  const exercises = routine.exercises || [];
   if(exercises.length===0){
-    alert('This routine has no exercises yet. Add some in Manage.');
+    alert('This routine has no exercises yet.');
     return;
   }
   session = { routine, exercises, index:0 };
@@ -832,93 +819,38 @@ function speakExercise(ex){
 // Editing now happens by hand-editing pt-coach.yaml directly on GitHub —
 // this screen is just a read-only viewer so you can confirm what's
 // currently loaded.
-let manageTab = 'exercises';
-function switchManageTab(tab){
-  manageTab = tab;
-  document.getElementById('tabExercises').classList.toggle('active', tab==='exercises');
-  document.getElementById('tabRoutines').classList.toggle('active', tab==='routines');
-  renderManageList();
-}
-
 function renderManageList(){
   const listEl = document.getElementById('manageList');
   listEl.innerHTML = '';
-  if(manageTab === 'exercises'){
-    if(DATA.exercises.length===0){
-      listEl.innerHTML = '<div class="empty-state">No exercises found in pt-coach.yaml.</div>';
-      return;
-    }
-    DATA.exercises.forEach(ex=>{
-      const card = document.createElement('div');
-      card.className='item-card';
-      card.onclick = ()=> viewExercise(ex.id);
-      card.innerHTML = `
-        <div>
-          <div class="iname">${escapeHtml(ex.name)}</div>
-          <div class="isub">${ex.sets} sets${ex.reps ? ' · '+ex.reps+' reps' : ''}${ex.hold?' · '+ex.hold+'s hold':''}</div>
-        </div>
-        <div class="item-actions"><div class="small-icon">›</div></div>`;
-      listEl.appendChild(card);
-    });
-  }else{
-    if(DATA.routines.length===0){
-      listEl.innerHTML = '<div class="empty-state">No routines found in pt-coach.yaml.</div>';
-      return;
-    }
-    DATA.routines.forEach(r=>{
-      const card = document.createElement('div');
-      card.className='item-card';
-      card.onclick = ()=> viewRoutine(r.id);
-      card.innerHTML = `
-        <div>
-          <div class="iname">${escapeHtml(r.name)}</div>
-          <div class="isub">${r.exerciseIds.length} exercise${r.exerciseIds.length===1?'':'s'}</div>
-        </div>
-        <div class="item-actions"><div class="small-icon">›</div></div>`;
-      listEl.appendChild(card);
-    });
+  if(DATA.routines.length===0){
+    listEl.innerHTML = '<div class="empty-state">No routines found in pt-coach.yaml.</div>';
+    return;
   }
+  DATA.routines.forEach((r, idx)=>{
+    const card = document.createElement('div');
+    card.className='item-card';
+    card.onclick = ()=> viewRoutine(idx);
+    card.innerHTML = `
+      <div>
+        <div class="iname">${escapeHtml(r.name)}</div>
+        <div class="isub">${r.exercises.length} exercise${r.exercises.length===1?'':'s'}</div>
+      </div>
+      <div class="item-actions"><div class="small-icon">›</div></div>`;
+    listEl.appendChild(card);
+  });
 }
 
 /* ===================== DETAIL VIEW (READ-ONLY) ===================== */
-function viewExercise(id){
-  const ex = DATA.exercises.find(e=>e.id===id);
-  if(!ex) return;
-  document.getElementById('formTitle').textContent = ex.name;
-  const body = document.getElementById('formBody');
-  body.innerHTML = `
-    <div class="field">
-      <label>Steps</label>
-      <div class="steps-box" style="margin:0;">
-        <ol>${ex.steps.map(s=>`<li>${escapeHtml(s)}</li>`).join('')}</ol>
-      </div>
-    </div>
-    <div class="row3" style="margin-top:16px;">
-      <div class="stat-pill"><span class="stat-label">Sets</span>${ex.sets || '—'}</div>
-      <div class="stat-pill"><span class="stat-label">Reps</span>${ex.reps || '—'}</div>
-      <div class="stat-pill"><span class="stat-label">Hold</span>${ex.hold?ex.hold+'s':'—'}</div>
-    </div>
-    <p class="tap-hint" style="text-align:left; margin-top:18px;">
-      To change this, edit pt-coach.yaml directly on GitHub.
-    </p>
-  `;
-  goTo('editForm');
-}
-
-function viewRoutine(id){
-  const r = DATA.routines.find(x=>x.id===id);
+function viewRoutine(idx){
+  const r = DATA.routines[idx];
   if(!r) return;
   document.getElementById('formTitle').textContent = r.name;
   const body = document.getElementById('formBody');
-  const exNames = r.exerciseIds.map(id=>{
-    const ex = DATA.exercises.find(e=>e.id===id);
-    return ex ? ex.name : '(missing exercise: ' + id + ')';
-  });
   body.innerHTML = `
     <div class="field">
       <label>Exercises in order</label>
       <div class="checklist">
-        ${exNames.map((n,i)=>`<div class="check-card checked"><div class="checkbox">${i+1}</div><div>${escapeHtml(n)}</div></div>`).join('')}
+        ${r.exercises.map((ex,i)=>`<div class="check-card checked"><div class="checkbox">${i+1}</div><div>${escapeHtml(ex.name)}</div></div>`).join('')}
       </div>
     </div>
     <p class="tap-hint" style="text-align:left; margin-top:18px;">
