@@ -12,14 +12,6 @@ routines:
   - name: Bhanu - Back
     exercises:
 
-      - name: Full Body Stretch
-        sets: 1
-        reps: 8
-        steps:
-          - Lie on your back on the mat.
-          - Stretch your arms overhead and reach your legs in the opposite direction with toes pointed away to extend the full body.
-          - Relax the upper body and arms while flexing your toes back toward your nose, letting your lower body, knees, and hips sink into the mat.
-
       - name: Toe Scrunch and Splay
         sets: 1
         reps: 8
@@ -27,6 +19,14 @@ routines:
         steps:
           - Lie on your back with legs extended.
           - Alternately splay your toes wide and scrunch them tight.
+
+      - name: Full Body Stretch
+        sets: 1
+        reps: 8
+        steps:
+          - Lie on your back on the mat.
+          - Stretch your arms overhead and reach your legs in the opposite direction with toes pointed away to extend the full body.
+          - Relax the upper body and arms while flexing your toes back toward your nose, letting your lower body, knees, and hips sink into the mat.
 
       - name: Ankle Rotations
         sets: 1
