@@ -421,7 +421,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v15';
+const APP_VERSION = 'v16';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -618,7 +618,8 @@ function presentCurrentExercise(){
 }
 
 function buildSpokenText(ex){
-  let txt = `${ex.name}. `;
+  const progress = session ? `${session.index + 1} of ${session.exercises.length}. ` : '';
+  let txt = `${progress}${ex.name}. `;
   ex.steps.forEach((s)=>{ txt += `${s} `; });
   if(ex.reps){
     txt += `Do ${ex.sets} sets of ${ex.reps} reps`;
