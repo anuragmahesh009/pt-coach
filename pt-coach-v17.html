@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>PT Coach</title>
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+<style>
+  :root{
+    --bg: #14181F;
+    --bg-raised: #1C212B;
+    --text: #F4F1EA;
+    --text-dim: #9AA1AE;
+    --accent-go: #7FA37A;
+    --accent-go-soft: rgba(127,163,122,0.18);
+    --accent-hold: #D9A14A;
+    --accent-hold-soft: rgba(217,161,74,0.16);
+    --accent-stop: #B5615A;
+    --accent-stop-soft: rgba(181,97,90,0.16);
+    --line: #2A313D;
+    --radius: 22px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    overscroll-behavior:none;
+    -webkit-user-select:none; user-select:none;
+  }
+  @font-face{
+    font-family:'Fredoka';
+    src: local('Fredoka');
+  }
+  #app{
+    position:fixed; inset:0;
+    display:flex; flex-direction:column;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .screen{
+    flex:1; display:none; flex-direction:column; min-height:0;
+    animation: fadeIn .25s ease;
+  }
+  .screen.active{display:flex;}
+  @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+
+  /* ---------- shared chrome ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 20px 10px;
+  }
+  .topbar h1{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:22px; font-weight:600; margin:0; letter-spacing:-0.01em;
+  }
+  .version-tag{
+    font-family: -apple-system, system-ui, sans-serif;
+    font-size:12px; font-weight:700; color:var(--accent-go);
+    background:var(--accent-go-soft); border:1px solid var(--accent-go);
+    border-radius:8px; padding:3px 8px; vertical-align:middle;
+    letter-spacing:0.01em;
+  }
+  .iconbtn{
+    width:40px; height:40px; border-radius:12px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text); font-size:18px; cursor:pointer;
+  }
+  .iconbtn:active{transform:scale(0.94);}
+
+  /* ---------- HOME ---------- */
+  #home{padding: 4px 20px 20px;}
+  .home-hero{
+    padding: 28px 4px 18px;
+  }
+  .home-hero .eyebrow{
+    color:var(--accent-go); font-size:13px; font-weight:600;
+    letter-spacing:0.08em; text-transform:uppercase; margin:0 0 8px;
+  }
+  .home-hero h2{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:34px; line-height:1.08; margin:0; font-weight:600;
+  }
+  .routine-list{
+    display:flex; flex-direction:column; gap:12px; margin-top:18px;
+    overflow-y:auto; padding-bottom: 12px;
+  }
+  .routine-card{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius: var(--radius);
+    padding:18px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    cursor:pointer;
+  }
+  .routine-card:active{transform:scale(0.985);}
+  .routine-card .rname{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:19px; font-weight:600;
+  }
+  .routine-card .rcount{
+    color:var(--text-dim); font-size:14px; margin-top:3px;
+  }
+  .routine-card .arrow{
+    color:var(--accent-go); font-size:22px;
+  }
+  .bottom-row{
+    display:flex; gap:12px; padding: 12px 20px 8px;
+  }
+  .ghost-btn{
+    flex:1; background:transparent; border:1px solid var(--line);
+    color:var(--text-dim); border-radius:14px; padding:13px;
+    font-size:15px; font-weight:600; text-align:center; cursor:pointer;
+  }
+  .ghost-btn:active{background:var(--bg-raised);}
+
+  /* ---------- SESSION ---------- */
+  #session{
+    padding: 12px 20px 16px;
+    justify-content: space-between;
+    overflow-y: auto;
+  }
+  .sess-top{
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .sess-progress{
+    color:var(--text-dim); font-size:13px; font-weight:600; letter-spacing:0.02em;
+  }
+  .sess-body{
+    flex:1; display:flex; flex-direction:column; justify-content:center;
+    text-align:center; padding: 4px 0; min-height:0;
+  }
+  .ex-name{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size: 30px; line-height:1.08; font-weight:600;
+    margin: 2px 0 10px;
+  }
+  .stat-row{
+    display:flex; gap:8px; justify-content:center; margin-bottom:12px; flex-wrap:wrap;
+  }
+  .stat-pill{
+    background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:12px; padding:6px 14px;
+    font-size:15px; font-weight:600;
+  }
+  .stat-pill .stat-label{
+    display:block; font-size:10px; font-weight:600; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:1px;
+  }
+  .steps-box{
+    text-align:left; background:var(--bg-raised); border:1px solid var(--line);
+    border-radius: var(--radius); padding:14px 18px; margin: 0 auto;
+    max-width: 480px; width:100%; overflow-y:auto;
+  }
+  .steps-box ol{
+    margin:0; padding-left:20px; font-size:15px; line-height:1.4;
+  }
+  .steps-box li{margin-bottom:5px;}
+  .steps-box li:last-child{margin-bottom:0;}
+
+  .sess-bottom{
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding-top: 6px; flex-shrink:0;
+  }
+  .speak-indicator{
+    display:flex; gap:6px; height:14px; align-items:center;
+  }
+  .speak-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--line); transition: background .2s ease;
+  }
+  .speak-indicator.active .speak-dot{
+    background: var(--accent-hold);
+    animation: speakPulse 1s ease-in-out infinite;
+  }
+  .speak-indicator.active .speak-dot:nth-child(2){ animation-delay: 0.15s; }
+  .speak-indicator.active .speak-dot:nth-child(3){ animation-delay: 0.3s; }
+  @keyframes speakPulse{
+    0%, 100%{ transform: scale(1); opacity:0.5; }
+    50%{ transform: scale(1.4); opacity:1; }
+  }
+  .mic-status{
+    font-size:12px; color:var(--text-dim); font-weight:600; min-height:14px;
+  }
+  .heard-chip{
+    font-size:13px; color:var(--accent-go); font-weight:600;
+    min-height:16px;
+  }
+  .sess-controls{
+    display:flex; gap:8px; width:100%; max-width:480px;
+  }
+  .media-controls{
+    display:flex; align-items:center; justify-content:center; gap:18px;
+    margin: 2px 0 4px;
+  }
+  .media-btn{
+    width:46px; height:46px; border-radius:50%;
+    background:var(--bg-raised); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text); cursor:pointer;
+  }
+  .media-btn:active{ transform:scale(0.92); }
+  .media-btn.primary{
+    width:56px; height:56px;
+    background:var(--accent-go-soft); border:1.5px solid var(--accent-go);
+    color:var(--accent-go);
+  }
+  .media-btn.disabled{
+    opacity:0.35; pointer-events:none;
+  }
+  .rate-control{
+    width:100%; max-width:480px; margin: 0;
+  }
+  .rate-control label{
+    font-size:12px; color:var(--text-dim); font-weight:600; display:block; margin-bottom:2px;
+  }
+  .rate-control label span{
+    color:var(--accent-go); font-weight:700;
+  }
+  .rate-control input[type=range]{
+    width:100%; accent-color: var(--accent-go); height:20px;
+  }
+  .voice-control{
+    width:100%; max-width:480px; margin:0;
+  }
+  .voice-control label{
+    font-size:12px; color:var(--text-dim); font-weight:600; display:block; margin-bottom:6px;
+  }
+  .voice-row{
+    display:flex; gap:8px; align-items:center;
+  }
+  .voice-select{
+    flex:1; min-width:0;
+    background:var(--bg-raised); color:var(--text); border:1px solid var(--line);
+    border-radius:12px; padding:11px 12px; font-size:15px; font-family:inherit;
+  }
+  .voice-preview{
+    flex:0 0 auto; background:var(--accent-go-soft); border:1px solid var(--accent-go);
+    color:var(--accent-go); border-radius:12px; padding:11px 13px;
+    font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .voice-preview:active{transform:scale(0.97);}
+  .control-btn{
+    flex:1; padding:10px; border-radius:12px; text-align:center;
+    font-size:14px; font-weight:600; cursor:pointer; border:1px solid var(--line);
+    background:var(--bg-raised); color:var(--text);
+  }
+  .control-btn:active{transform:scale(0.97);}
+  .control-btn.next{
+    background:var(--accent-go-soft); border-color:var(--accent-go); color:var(--accent-go);
+  }
+  .control-btn.stop{
+    background:var(--accent-stop-soft); border-color:var(--accent-stop); color:var(--accent-stop);
+    flex: 0 0 84px;
+  }
+  .tap-hint{
+    font-size:12px; color:var(--text-dim); text-align:center; padding-top:2px;
+  }
+
+  /* ---------- PICKER MODAL ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55);
+    display:none; align-items:flex-end; justify-content:center; z-index:50;
+  }
+  .modal-backdrop.active{display:flex;}
+  .modal-sheet{
+    background:var(--bg-raised); width:100%; max-width:560px;
+    border-radius: 24px 24px 0 0; padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+    max-height:75vh; overflow-y:auto;
+    border-top:1px solid var(--line);
+  }
+  .modal-sheet h3{
+    font-family:'Fredoka', system-ui, sans-serif; font-size:20px; margin:0 0 14px;
+  }
+
+  /* ---------- MANAGE ---------- */
+  #manage{padding: 4px 20px 20px;}
+  .tabs{display:flex; gap:8px; padding: 0 0 14px;}
+  .tab{
+    flex:1; text-align:center; padding:10px; border-radius:12px;
+    background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text-dim); font-weight:600; font-size:14px; cursor:pointer;
+  }
+  .tab.active{ color:var(--bg); background:var(--accent-go); border-color:var(--accent-go); }
+  .list-scroll{ overflow-y:auto; flex:1; }
+  .item-card{
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:16px;
+    padding:14px 16px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; gap:10px;
+  }
+  .item-card .iname{font-weight:600; font-size:16px;}
+  .item-card .isub{color:var(--text-dim); font-size:13px; margin-top:2px;}
+  .item-actions{display:flex; gap:8px; flex-shrink:0;}
+  .small-icon{
+    width:32px; height:32px; border-radius:9px; background:var(--bg);
+    border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+    font-size:14px; cursor:pointer; color:var(--text-dim);
+  }
+  .fab{
+    position:absolute; right:24px; bottom:24px;
+    width:56px; height:56px; border-radius:50%;
+    background:var(--accent-go); color:#102015; font-size:26px; font-weight:700;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(0,0,0,0.35); cursor:pointer; z-index:5;
+  }
+
+  /* ---------- FORM ---------- */
+  #editForm{padding: 4px 20px 20px;}
+  .form-scroll{ overflow-y:auto; flex:1; padding-bottom: 10px;}
+  .field{margin-bottom:16px;}
+  .field label{
+    display:block; font-size:13px; font-weight:600; color:var(--text-dim);
+    margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .field input, .field textarea{
+    width:100%; background:var(--bg-raised); border:1px solid var(--line);
+    color:var(--text); border-radius:12px; padding:12px 14px; font-size:16px;
+    font-family:inherit;
+  }
+  .field textarea{resize:vertical; min-height:90px; line-height:1.5;}
+  .row3{display:flex; gap:10px;}
+  .row3 .field{flex:1;}
+  .step-row{display:flex; gap:8px; margin-bottom:8px; align-items:flex-start;}
+  .step-row input{flex:1;}
+  .save-btn{
+    background:var(--accent-go); color:#102015; border:none; border-radius:14px;
+    padding:15px; font-size:16px; font-weight:700; text-align:center; cursor:pointer;
+    margin-top: 6px;
+  }
+  .checklist{
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .check-card{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:14px;
+    padding:12px 14px; cursor:pointer;
+  }
+  .check-card.checked{ border-color:var(--accent-go); background:var(--accent-go-soft); }
+  .checkbox{
+    width:22px; height:22px; border-radius:7px; border:2px solid var(--line);
+    flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .check-card.checked .checkbox{ background:var(--accent-go); border-color:var(--accent-go); color:#102015; }
+  .empty-state{
+    text-align:center; color:var(--text-dim); padding: 60px 20px; font-size:15px; line-height:1.6;
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="rotateOverlay" style="position:fixed; inset:0; background:var(--bg); z-index:200; display:none; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:30px;">
+    <div style="font-size:48px; margin-bottom:16px;">📱</div>
+    <div style="font-size:18px; font-weight:600; color:var(--text); margin-bottom:6px;">This app works best in portrait</div>
+    <div style="font-size:14px; color:var(--text-dim);">Please rotate your phone back upright.</div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen active" id="home">
+    <div class="topbar">
+      <h1>PT Coach <span id="versionTag" class="version-tag"></span></h1>
+      <div class="iconbtn" onclick="goTo('manage')">⚙︎</div>
+    </div>
+    <div class="home-hero">
+      <p class="eyebrow">Today</p>
+      <h2>Which routine<br/>are we doing?</h2>
+    </div>
+    <div class="rate-control" style="padding:0 4px; margin-bottom:14px;">
+      <label for="rateSlider">Speed: <span id="rateLabel">0.70</span></label>
+      <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.70" oninput="onRateSliderChange(this.value)">
+    </div>
+    <div class="voice-control" style="padding:0 4px; margin-bottom:14px;">
+      <label for="voiceSelect">Voice</label>
+      <div class="voice-row">
+        <select id="voiceSelect" class="voice-select" onchange="onVoiceChange(this.value)">
+          <option value="">Auto — best available</option>
+        </select>
+        <button class="voice-preview" type="button" onclick="previewVoice()">Preview</button>
+      </div>
+    </div>
+    <div class="routine-list" id="routineList"></div>
+  </div>
+
+  <!-- SESSION -->
+  <div class="screen" id="session" onclick="manualNext()">
+    <div class="sess-top">
+      <div class="sess-progress" id="sessProgress">Exercise 1 of 5</div>
+      <div class="iconbtn" onclick="event.stopPropagation(); endSession()">✕</div>
+    </div>
+    <div class="sess-body">
+      <div class="ex-name" id="exName">Exercise name</div>
+      <div class="stat-row" id="exStats"></div>
+      <div class="steps-box">
+        <ol id="exSteps"></ol>
+      </div>
+    </div>
+    <div class="sess-bottom">
+      <div class="speak-indicator" id="speakIndicator">
+        <div class="speak-dot"></div>
+        <div class="speak-dot"></div>
+        <div class="speak-dot"></div>
+      </div>
+      <div class="mic-status" id="micStatus">Ready</div>
+      <div class="media-controls" onclick="event.stopPropagation()">
+        <div class="media-btn" id="prevBtn" onclick="manualPrev()">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 6h2v12H6zM20 6L9 12l11 6z" fill="currentColor"/></svg>
+        </div>
+        <div class="media-btn primary" id="pausePlayBtn" onclick="togglePausePlay()">
+          <svg id="pauseIcon" viewBox="0 0 24 24" width="26" height="26"><path d="M7 5h4v14H7zM13 5h4v14h-4z" fill="currentColor"/></svg>
+          <svg id="playIcon" viewBox="0 0 24 24" width="26" height="26" style="display:none;"><path d="M7 4l13 8-13 8z" fill="currentColor"/></svg>
+        </div>
+        <div class="media-btn" id="nextBtn" onclick="manualNext()">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M16 6h2v12h-2zM4 6l11 6-11 6z" fill="currentColor"/></svg>
+        </div>
+      </div>
+      <div class="sess-controls" onclick="event.stopPropagation()">
+        <div class="control-btn" onclick="repeatCurrent()">Repeat</div>
+        <div class="control-btn stop" onclick="endSession()">End</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW DATA (read-only) -->
+  <div class="screen" id="manage" style="position:relative;">
+    <div class="topbar">
+      <div class="iconbtn" onclick="goTo('home')">‹</div>
+      <h1>Your Data</h1>
+      <div style="width:40px;"></div>
+    </div>
+    <p class="tap-hint" style="text-align:left; padding:0 4px 10px;">
+      Read-only — edit pt-coach.yaml on GitHub to make changes.
+    </p>
+    <div class="list-scroll" id="manageList"></div>
+  </div>
+
+  <!-- DETAIL VIEW (routine, read-only) -->
+  <div class="screen" id="editForm">
+    <div class="topbar">
+      <div class="iconbtn" onclick="goTo('manage')">‹</div>
+      <h1 id="formTitle">Detail</h1>
+      <div style="width:40px;"></div>
+    </div>
+    <div class="form-scroll" id="formBody"></div>
+  </div>
+
+</div>
+
+<script>
+/* ===================== VERSION ===================== */
+// Bump this string every time a new version is shipped, so it's easy to
+// confirm laptop and iPhone (or any two devices) are running the same build.
+const APP_VERSION = 'v17';
+
+/* ===================== GLOBAL ERROR DISPLAY ===================== */
+// Shows any uncaught JS error directly on screen as a visible banner.
+// This lets us diagnose issues on a phone with no access to dev tools.
+function showFatalError(message, source){
+  let banner = document.getElementById('fatalErrorBanner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'fatalErrorBanner';
+    banner.style.position = 'fixed';
+    banner.style.top = '0';
+    banner.style.left = '0';
+    banner.style.right = '0';
+    banner.style.zIndex = '9999';
+    banner.style.background = '#B5615A';
+    banner.style.color = '#fff';
+    banner.style.padding = '14px 16px';
+    banner.style.fontFamily = 'monospace';
+    banner.style.fontSize = '12px';
+    banner.style.lineHeight = '1.5';
+    banner.style.whiteSpace = 'pre-wrap';
+    banner.style.maxHeight = '50vh';
+    banner.style.overflowY = 'auto';
+    document.body.appendChild(banner);
+  }
+  banner.textContent += 'ERROR: ' + message + (source ? ('\n  at ' + source) : '') + '\n\n';
+}
+
+window.addEventListener('error', function(e){
+  showFatalError(e.message, (e.filename || '') + ':' + (e.lineno || '?') + ':' + (e.colno || '?'));
+});
+window.addEventListener('unhandledrejection', function(e){
+  showFatalError('Unhandled promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+});
+
+/* ===================== DATA ===================== */
+// Data lives in a separate file, pt-coach.yaml, sitting alongside this HTML
+// file in the same GitHub repo. There is no local storage and no hardcoded
+// defaults here — every load fetches the current YAML fresh, so the app
+// and the data are cleanly separated, and every device always sees the
+// same data (whatever's currently in the YAML file on GitHub).
+const DATA_FILE = 'pt-coach.yaml';
+
+let DATA = { routines: [] };
+let dataLoadError = null;
+
+async function loadData(){
+  try{
+    const res = await fetch(DATA_FILE, { cache: 'no-store' });
+    if(!res.ok){
+      throw new Error('Could not fetch ' + DATA_FILE + ' (HTTP ' + res.status + ')');
+    }
+    const text = await res.text();
+    const parsed = jsyaml.load(text);
+    if(!parsed || !Array.isArray(parsed.routines)){
+      throw new Error(DATA_FILE + ' is missing a "routines" list.');
+    }
+    DATA = { routines: parsed.routines };
+    dataLoadError = null;
+  }catch(e){
+    dataLoadError = e.message;
+    DATA = { routines: [] };
+  }
+}
+
+/* ===================== NAV ===================== */
+function goTo(screenId){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(screenId).classList.add('active');
+  if(screenId === 'home') renderHome();
+  if(screenId === 'manage') renderManageList();
+  window.scrollTo(0,0);
+}
+
+/* ===================== HOME ===================== */
+function renderHome(){
+  const versionEl = document.getElementById('versionTag');
+  if(versionEl) versionEl.textContent = APP_VERSION;
+  const list = document.getElementById('routineList');
+  list.innerHTML = '';
+  if(DATA.routines.length === 0){
+    list.innerHTML = '<div class="empty-state">No routines yet.<br>Tap the gear icon to add one.</div>';
+    return;
+  }
+  DATA.routines.forEach((r, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'routine-card';
+    card.onclick = ()=> startSession(idx);
+    card.innerHTML = `
+      <div>
+        <div class="rname">${escapeHtml(r.name)}</div>
+        <div class="rcount">${r.exercises.length} exercise${r.exercises.length===1?'':'s'}</div>
+      </div>
+      <div class="arrow">▶</div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+/* ===================== SESSION STATE ===================== */
+let session = null; // { routine, exercises:[...], index }
+
+/* ===================== ORIENTATION ===================== */
+// Safari on iOS doesn't let a webpage force portrait orientation, so instead
+// we detect landscape and show a friendly "please rotate back" message.
+function checkOrientation(){
+  const overlay = document.getElementById('rotateOverlay');
+  if(!overlay) return;
+  const isLandscape = window.innerWidth > window.innerHeight;
+  overlay.style.display = isLandscape ? 'flex' : 'none';
+}
+window.addEventListener('resize', checkOrientation);
+window.addEventListener('orientationchange', checkOrientation);
+
+/* ===================== WAKE LOCK ===================== */
+// Keeps the screen from auto-locking while a PT session is active.
+// Support varies by iOS version; if unavailable, the app still works,
+// it just won't be able to prevent the screen from sleeping.
+let wakeLock = null;
+
+async function acquireWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+  }catch(e){
+    console.warn('Wake Lock request failed:', e);
+  }
+}
+
+function releaseWakeLock(){
+  if(wakeLock){
+    try{ wakeLock.release(); }catch(e){}
+    wakeLock = null;
+  }
+}
+
+// Wake Lock is automatically released by the browser when the tab/app goes
+// to the background. If the person returns to the app mid-session, try to
+// re-acquire it so the screen still won't lock for the rest of the routine.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && session && !wakeLock){
+    acquireWakeLock();
+  }
+});
+
+function startSession(routineIdx){
+  const routine = DATA.routines[routineIdx];
+  if(!routine) return;
+  const exercises = routine.exercises || [];
+  if(exercises.length===0){
+    alert('This routine has no exercises yet.');
+    return;
+  }
+  session = { routine, exercises, index:0 };
+  goTo('session');
+  unlockSpeech();
+  acquireWakeLock();
+  presentCurrentExercise();
+}
+
+function presentCurrentExercise(){
+  resetPausePlayIcon();
+  const prevBtn = document.getElementById('prevBtn');
+  if(prevBtn) prevBtn.classList.toggle('disabled', session.index === 0);
+  const ex = session.exercises[session.index];
+  document.getElementById('sessProgress').textContent =
+    `Exercise ${session.index+1} of ${session.exercises.length}`;
+  document.getElementById('exName').textContent = ex.name;
+
+  const stats = document.getElementById('exStats');
+  stats.innerHTML = '';
+  const pills = [
+    {label:'Sets', val: ex.sets || '—'},
+    {label:'Reps', val: ex.reps || '—'},
+    {label:'Hold', val: ex.hold ? ex.hold + 's' : '—'}
+  ];
+  pills.forEach(p=>{
+    const el = document.createElement('div');
+    el.className='stat-pill';
+    el.innerHTML = `<span class="stat-label">${p.label}</span>${p.val}`;
+    stats.appendChild(el);
+  });
+
+  const stepsEl = document.getElementById('exSteps');
+  stepsEl.innerHTML = '';
+  ex.steps.forEach(s=>{
+    const li = document.createElement('li');
+    li.textContent = s;
+    stepsEl.appendChild(li);
+  });
+
+  speakExercise(ex);
+}
+
+function buildSpokenText(ex){
+  const progress = session ? `${session.index + 1} of ${session.exercises.length}. ` : '';
+  let txt = `${progress}${ex.name}. `;
+  ex.steps.forEach((s)=>{ txt += `${s} `; });
+  if(ex.reps){
+    txt += `Do ${ex.sets} sets of ${ex.reps} reps`;
+  }else{
+    txt += `Do ${ex.sets} ${ex.sets == 1 ? 'set' : 'sets'}`;
+  }
+  if(ex.hold && ex.hold > 1){ txt += `, holding each for ${ex.hold} seconds`; }
+  txt += `.`;
+  return txt;
+}
+
+function repeatCurrent(){
+  resetPausePlayIcon();
+  const ex = session.exercises[session.index];
+  speakExercise(ex);
+}
+
+let advanceInFlight = false;
+function advanceExercise(){
+  if(!session) return;
+  if(advanceInFlight) return;
+  advanceInFlight = true;
+  if(session.index < session.exercises.length - 1){
+    session.index++;
+    presentCurrentExercise();
+  }else{
+    finishSession();
+  }
+  setTimeout(()=>{ advanceInFlight = false; }, 300);
+}
+function manualNext(){ advanceExercise(); }
+
+function manualPrev(){
+  if(!session) return;
+  if(advanceInFlight) return;
+  if(session.index === 0) return; // already at the first exercise
+  advanceInFlight = true;
+  session.index--;
+  presentCurrentExercise();
+  setTimeout(()=>{ advanceInFlight = false; }, 300);
+}
+
+// Pause/resume speech mid-sentence. The Web Speech API's pause/resume can be
+// a little inconsistent across browsers, so we guard with try/catch and
+// always keep the on-screen icon in sync with what we asked it to do.
+function resetPausePlayIcon(){
+  const pauseIcon = document.getElementById('pauseIcon');
+  const playIcon = document.getElementById('playIcon');
+  if(pauseIcon) pauseIcon.style.display = '';
+  if(playIcon) playIcon.style.display = 'none';
+}
+
+function togglePausePlay(){
+  if(!('speechSynthesis' in window)) return;
+  const pauseIcon = document.getElementById('pauseIcon');
+  const playIcon = document.getElementById('playIcon');
+  try{
+    if(window.speechSynthesis.speaking && !window.speechSynthesis.paused){
+      window.speechSynthesis.pause();
+      if(pauseIcon) pauseIcon.style.display = 'none';
+      if(playIcon) playIcon.style.display = '';
+    }else if(window.speechSynthesis.paused){
+      window.speechSynthesis.resume();
+      if(pauseIcon) pauseIcon.style.display = '';
+      if(playIcon) playIcon.style.display = 'none';
+    }
+  }catch(e){
+    console.warn('Pause/resume not supported as expected:', e);
+  }
+}
+
+function finishSession(){
+  releaseWakeLock();
+  speak("Great work. That's the full routine complete.", ()=>{
+    setTimeout(()=>{ session=null; goTo('home'); }, 600);
+  });
+  document.getElementById('exName').textContent = "All done! 🎉";
+  document.getElementById('exStats').innerHTML='';
+  document.getElementById('exSteps').innerHTML='<li>Routine complete. Nice work.</li>';
+  document.getElementById('micStatus').textContent = 'Returning home...';
+  document.getElementById('sessProgress').textContent = 'Finished';
+}
+
+function endSession(){
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  releaseWakeLock();
+  session = null;
+  goTo('home');
+}
+
+/* ===================== TEXT-TO-SPEECH ===================== */
+let speechUnlocked = false;
+let cachedVoice = null;
+
+function unlockSpeech(){
+  if(speechUnlocked) return;
+  try{
+    const u = new SpeechSynthesisUtterance(' ');
+    u.volume = 0;
+    window.speechSynthesis.speak(u);
+    speechUnlocked = true;
+  }catch(e){}
+  // Voice lists load asynchronously on first use in some browsers.
+  if(window.speechSynthesis && typeof window.speechSynthesis.addEventListener === 'function'){
+    window.speechSynthesis.addEventListener('voiceschanged', ()=>{
+      cachedVoice = null;
+      populateVoiceSelector();
+    });
+  }
+  populateVoiceSelector();
+}
+
+// Preference order: smooth, natural-sounding female voices first.
+// "Samantha" (iOS/macOS) and "Google US English" (some Android/Chrome) are
+// generally the smoothest defaults available without paid neural TTS.
+const PREFERRED_VOICE_NAMES = [
+  'Samantha',           // iOS / macOS default female voice — smoothest built-in option
+  'Siri Female',
+  'Microsoft Aria Online (Natural) - English (United States)',
+  'Microsoft Jenny Online (Natural) - English (United States)',
+  'Google US English',
+  'Karen',
+  'Moira',
+  'Tessa',
+  'Victoria'
+];
+
+let selectedVoiceName = '';
+try{ selectedVoiceName = localStorage.getItem('ptCoachVoice') || ''; }catch(e){}
+
+function getEnglishVoices(){
+  if(!('speechSynthesis' in window)) return [];
+  return (window.speechSynthesis.getVoices() || [])
+    .filter(v => /en[-_]/i.test(v.lang || ''))
+    .sort((a,b) => a.name.localeCompare(b.name));
+}
+
+function populateVoiceSelector(){
+  const select = document.getElementById('voiceSelect');
+  if(!select) return;
+  const voices = getEnglishVoices();
+  const previous = selectedVoiceName;
+  select.innerHTML = '<option value="">Auto — best available</option>';
+  voices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})${v.localService ? '' : ' — online'}`;
+    select.appendChild(opt);
+  });
+  if(previous && voices.some(v => v.name === previous)){
+    select.value = previous;
+  }else{
+    select.value = '';
+    if(previous){
+      selectedVoiceName = '';
+      try{ localStorage.removeItem('ptCoachVoice'); }catch(e){}
+    }
+  }
+}
+
+function onVoiceChange(name){
+  selectedVoiceName = name || '';
+  cachedVoice = null;
+  try{
+    if(selectedVoiceName) localStorage.setItem('ptCoachVoice', selectedVoiceName);
+    else localStorage.removeItem('ptCoachVoice');
+  }catch(e){}
+}
+
+function previewVoice(){
+  unlockSpeech();
+  speak('Hi. This is the PT Coach voice. Choose the voice that sounds most natural to you.');
+}
+
+function pickVoice(){
+  if(cachedVoice) return cachedVoice;
+  if(!('speechSynthesis' in window)) return null;
+  const voices = window.speechSynthesis.getVoices() || [];
+  if(voices.length === 0) return null;
+
+  // 1) If the user chose a voice explicitly, always use it when available.
+  if(selectedVoiceName){
+    const selected = voices.find(v => v.name === selectedVoiceName);
+    if(selected){ cachedVoice = selected; return cachedVoice; }
+  }
+
+  // 2) Otherwise use the app's preferred natural-sounding English voices.
+  for(const name of PREFERRED_VOICE_NAMES){
+    const match = voices.find(v => v.name === name);
+    if(match){ cachedVoice = match; return cachedVoice; }
+  }
+  // 3) Any voice whose name suggests a female English voice.
+  const femaleHint = voices.find(v =>
+    /en[-_]/i.test(v.lang) &&
+    /female|samantha|victoria|karen|moira|tessa|aria|jenny|zira|susan|allison|ava/i.test(v.name)
+  );
+  if(femaleHint){ cachedVoice = femaleHint; return cachedVoice; }
+  // 4) Fall back to any English voice.
+  const anyEnglish = voices.find(v => /en[-_]/i.test(v.lang));
+  if(anyEnglish){ cachedVoice = anyEnglish; return cachedVoice; }
+  // 5) Last resort: whatever the browser gives us first.
+  cachedVoice = voices[0] || null;
+  return cachedVoice;
+}
+
+function setSpeakingVisual(isSpeaking){
+  const ind = document.getElementById('speakIndicator');
+  if(!ind) return;
+  ind.classList.toggle('active', isSpeaking);
+  document.getElementById('micStatus').textContent = isSpeaking
+    ? 'Speaking…'
+    : 'Ready';
+}
+
+// Speaking rate is controlled by a non-persistent in-session slider on the
+// session screen. It always resets to DEFAULT_SPEECH_RATE when the app starts
+// or a new session begins — it deliberately does not save between sessions.
+const DEFAULT_SPEECH_RATE = 0.70;
+let currentSpeechRate = DEFAULT_SPEECH_RATE;
+
+function onRateSliderChange(value){
+  currentSpeechRate = parseFloat(value);
+  const label = document.getElementById('rateLabel');
+  if(label) label.textContent = currentSpeechRate.toFixed(2);
+}
+
+function speak(text, onEnd){
+  if(!('speechSynthesis' in window)){
+    if(onEnd) onEnd();
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  const voice = pickVoice();
+  if(voice) utter.voice = voice;
+  utter.rate = currentSpeechRate;
+  utter.pitch = 1.0;
+  setSpeakingVisual(true);
+  utter.onend = ()=>{
+    setSpeakingVisual(false);
+    if(onEnd) onEnd();
+  };
+  utter.onerror = ()=>{
+    setSpeakingVisual(false);
+    if(onEnd) onEnd();
+  };
+  window.speechSynthesis.speak(utter);
+}
+
+function speakExercise(ex){
+  speak(buildSpokenText(ex));
+}
+
+/* ===================== MANAGE: LIST (READ-ONLY) ===================== */
+// Editing now happens by hand-editing pt-coach.yaml directly on GitHub —
+// this screen is just a read-only viewer so you can confirm what's
+// currently loaded.
+function renderManageList(){
+  const listEl = document.getElementById('manageList');
+  listEl.innerHTML = '';
+  if(DATA.routines.length===0){
+    listEl.innerHTML = '<div class="empty-state">No routines found in pt-coach.yaml.</div>';
+    return;
+  }
+  DATA.routines.forEach((r, idx)=>{
+    const card = document.createElement('div');
+    card.className='item-card';
+    card.onclick = ()=> viewRoutine(idx);
+    card.innerHTML = `
+      <div>
+        <div class="iname">${escapeHtml(r.name)}</div>
+        <div class="isub">${r.exercises.length} exercise${r.exercises.length===1?'':'s'}</div>
+      </div>
+      <div class="item-actions"><div class="small-icon">›</div></div>`;
+    listEl.appendChild(card);
+  });
+}
+
+/* ===================== DETAIL VIEW (READ-ONLY) ===================== */
+function viewRoutine(idx){
+  const r = DATA.routines[idx];
+  if(!r) return;
+  document.getElementById('formTitle').textContent = r.name;
+  const body = document.getElementById('formBody');
+  body.innerHTML = `
+    <div class="field">
+      <label>Exercises in order</label>
+      <div class="checklist">
+        ${r.exercises.map((ex,i)=>`<div class="check-card checked"><div class="checkbox">${i+1}</div><div>${escapeHtml(ex.name)}</div></div>`).join('')}
+      </div>
+    </div>
+    <p class="tap-hint" style="text-align:left; margin-top:18px;">
+      To change this, edit pt-coach.yaml directly on GitHub.
+    </p>
+  `;
+  goTo('editForm');
+}
+
+/* ===================== UTIL ===================== */
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+/* ===================== INIT ===================== */
+async function initApp(){
+  try{
+    // Show a lightweight loading state while we fetch pt-coach.yaml.
+    const list = document.getElementById('routineList');
+    if(list) list.innerHTML = '<div class="empty-state">Loading your routines…</div>';
+
+    await loadData();
+
+    if(dataLoadError){
+      document.getElementById('app').innerHTML =
+        '<div style="padding:40px 24px; text-align:center; color:#F4F1EA;">' +
+        '<h2 style="font-family:sans-serif;">Could not load pt-coach.yaml</h2>' +
+        '<p style="color:#9AA1AE; margin-top:10px;">' + escapeHtml(dataLoadError) + '</p>' +
+        '<p style="color:#9AA1AE; margin-top:10px;">Make sure pt-coach.yaml exists in the same GitHub repo as this page, ' +
+        'and that you have an internet connection.</p>' +
+        '</div>';
+      return;
+    }
+
+    renderHome();
+    populateVoiceSelector();
+    // iOS may expose the voice list a moment after page load. Try again shortly.
+    setTimeout(populateVoiceSelector, 250);
+    setTimeout(populateVoiceSelector, 1000);
+  }catch(e){
+    console.error('PT Coach failed to initialize:', e);
+    document.getElementById('app').innerHTML =
+      '<div style="padding:40px 24px; text-align:center; color:#F4F1EA;">' +
+      '<h2 style="font-family:sans-serif;">Something went wrong loading PT Coach</h2>' +
+      '<p style="color:#9AA1AE; margin-top:10px;">Error: ' + escapeHtml(e.message) + '</p>' +
+      '</div>';
+  }
+}
+initApp();
+checkOrientation();
+</script>
+</body>
+</html>
