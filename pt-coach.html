@@ -223,6 +223,26 @@
   .rate-control input[type=range]{
     width:100%; accent-color: var(--accent-go); height:20px;
   }
+  .voice-control{
+    width:100%; max-width:480px; margin:0;
+  }
+  .voice-control label{
+    font-size:12px; color:var(--text-dim); font-weight:600; display:block; margin-bottom:6px;
+  }
+  .voice-row{
+    display:flex; gap:8px; align-items:center;
+  }
+  .voice-select{
+    flex:1; min-width:0;
+    background:var(--bg-raised); color:var(--text); border:1px solid var(--line);
+    border-radius:12px; padding:11px 12px; font-size:15px; font-family:inherit;
+  }
+  .voice-preview{
+    flex:0 0 auto; background:var(--accent-go-soft); border:1px solid var(--accent-go);
+    color:var(--accent-go); border-radius:12px; padding:11px 13px;
+    font-size:14px; font-weight:700; cursor:pointer;
+  }
+  .voice-preview:active{transform:scale(0.97);}
   .control-btn{
     flex:1; padding:10px; border-radius:12px; text-align:center;
     font-size:14px; font-weight:600; cursor:pointer; border:1px solid var(--line);
@@ -350,6 +370,15 @@
       <label for="rateSlider">Speed: <span id="rateLabel">0.70</span></label>
       <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.70" oninput="onRateSliderChange(this.value)">
     </div>
+    <div class="voice-control" style="padding:0 4px; margin-bottom:14px;">
+      <label for="voiceSelect">Voice</label>
+      <div class="voice-row">
+        <select id="voiceSelect" class="voice-select" onchange="onVoiceChange(this.value)">
+          <option value="">Auto — best available</option>
+        </select>
+        <button class="voice-preview" type="button" onclick="previewVoice()">Preview</button>
+      </div>
+    </div>
     <div class="routine-list" id="routineList"></div>
   </div>
 
@@ -421,7 +450,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v16';
+const APP_VERSION = 'v17';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -724,8 +753,12 @@ function unlockSpeech(){
   }catch(e){}
   // Voice lists load asynchronously on first use in some browsers.
   if(window.speechSynthesis && typeof window.speechSynthesis.addEventListener === 'function'){
-    window.speechSynthesis.addEventListener('voiceschanged', ()=>{ cachedVoice = null; });
+    window.speechSynthesis.addEventListener('voiceschanged', ()=>{
+      cachedVoice = null;
+      populateVoiceSelector();
+    });
   }
+  populateVoiceSelector();
 }
 
 // Preference order: smooth, natural-sounding female voices first.
@@ -743,27 +776,80 @@ const PREFERRED_VOICE_NAMES = [
   'Victoria'
 ];
 
+let selectedVoiceName = '';
+try{ selectedVoiceName = localStorage.getItem('ptCoachVoice') || ''; }catch(e){}
+
+function getEnglishVoices(){
+  if(!('speechSynthesis' in window)) return [];
+  return (window.speechSynthesis.getVoices() || [])
+    .filter(v => /en[-_]/i.test(v.lang || ''))
+    .sort((a,b) => a.name.localeCompare(b.name));
+}
+
+function populateVoiceSelector(){
+  const select = document.getElementById('voiceSelect');
+  if(!select) return;
+  const voices = getEnglishVoices();
+  const previous = selectedVoiceName;
+  select.innerHTML = '<option value="">Auto — best available</option>';
+  voices.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})${v.localService ? '' : ' — online'}`;
+    select.appendChild(opt);
+  });
+  if(previous && voices.some(v => v.name === previous)){
+    select.value = previous;
+  }else{
+    select.value = '';
+    if(previous){
+      selectedVoiceName = '';
+      try{ localStorage.removeItem('ptCoachVoice'); }catch(e){}
+    }
+  }
+}
+
+function onVoiceChange(name){
+  selectedVoiceName = name || '';
+  cachedVoice = null;
+  try{
+    if(selectedVoiceName) localStorage.setItem('ptCoachVoice', selectedVoiceName);
+    else localStorage.removeItem('ptCoachVoice');
+  }catch(e){}
+}
+
+function previewVoice(){
+  unlockSpeech();
+  speak('Hi. This is the PT Coach voice. Choose the voice that sounds most natural to you.');
+}
+
 function pickVoice(){
   if(cachedVoice) return cachedVoice;
   if(!('speechSynthesis' in window)) return null;
   const voices = window.speechSynthesis.getVoices() || [];
   if(voices.length === 0) return null;
 
-  // 1) Exact name match against preference list, in order.
+  // 1) If the user chose a voice explicitly, always use it when available.
+  if(selectedVoiceName){
+    const selected = voices.find(v => v.name === selectedVoiceName);
+    if(selected){ cachedVoice = selected; return cachedVoice; }
+  }
+
+  // 2) Otherwise use the app's preferred natural-sounding English voices.
   for(const name of PREFERRED_VOICE_NAMES){
     const match = voices.find(v => v.name === name);
     if(match){ cachedVoice = match; return cachedVoice; }
   }
-  // 2) Any voice whose name suggests a female English voice.
+  // 3) Any voice whose name suggests a female English voice.
   const femaleHint = voices.find(v =>
     /en[-_]/i.test(v.lang) &&
-    /female|samantha|victoria|karen|moira|tessa|aria|jenny|zira|susan|allison/i.test(v.name)
+    /female|samantha|victoria|karen|moira|tessa|aria|jenny|zira|susan|allison|ava/i.test(v.name)
   );
   if(femaleHint){ cachedVoice = femaleHint; return cachedVoice; }
-  // 3) Fall back to any English voice.
+  // 4) Fall back to any English voice.
   const anyEnglish = voices.find(v => /en[-_]/i.test(v.lang));
   if(anyEnglish){ cachedVoice = anyEnglish; return cachedVoice; }
-  // 4) Last resort: whatever the browser gives us first.
+  // 5) Last resort: whatever the browser gives us first.
   cachedVoice = voices[0] || null;
   return cachedVoice;
 }
@@ -888,6 +974,10 @@ async function initApp(){
     }
 
     renderHome();
+    populateVoiceSelector();
+    // iOS may expose the voice list a moment after page load. Try again shortly.
+    setTimeout(populateVoiceSelector, 250);
+    setTimeout(populateVoiceSelector, 1000);
   }catch(e){
     console.error('PT Coach failed to initialize:', e);
     document.getElementById('app').innerHTML =
