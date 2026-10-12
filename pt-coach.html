@@ -574,7 +574,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v21.1';
+const APP_VERSION = 'v22';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -1275,11 +1275,11 @@ function syncAmbientToBreath(phaseKey, phaseProgress){
     if(phaseKey === 'inhale'){
       target = quietLevel + (fullLevel - quietLevel) * eased;
     }else if(phaseKey === 'holdIn'){
-      target = fullLevel;
+      target = 0.0001;
     }else if(phaseKey === 'exhale'){
       target = fullLevel - (fullLevel - quietLevel) * eased;
     }else if(phaseKey === 'holdOut'){
-      target = quietLevel;
+      target = 0.0001;
     }
 
     ambientMasterGain.gain.setTargetAtTime(target, breathAudioContext.currentTime, 0.09);
