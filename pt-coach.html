@@ -419,6 +419,18 @@
     color:var(--accent-stop); border-color:var(--accent-stop);
   }
 
+
+  #breathSetupFields .breath-setup-field{ margin-bottom:14px; }
+  #breathSetupFields label{
+    display:block; font-size:13px; font-weight:600; color:var(--text-dim);
+    margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;
+  }
+  #breathSetupFields input{
+    width:100%; background:var(--bg); border:1px solid var(--line);
+    color:var(--text); border-radius:12px; padding:12px 14px;
+    font-size:20px; font-family:inherit;
+  }
+
 </style>
 </head>
 <body>
@@ -543,13 +555,26 @@
     <div class="form-scroll" id="formBody"></div>
   </div>
 
+
+  <!-- VARIABLE BREATHING SETUP -->
+  <div class="modal-backdrop" id="breathSetupModal">
+    <div class="modal-sheet" style="max-width:520px;">
+      <h3 id="breathSetupTitle">Breathing Setup</h3>
+      <div id="breathSetupFields"></div>
+      <div style="display:flex; gap:10px; margin-top:18px;">
+        <button class="control-btn" type="button" onclick="closeBreathSetup()">Cancel</button>
+        <button class="control-btn next" type="button" onclick="confirmBreathSetup()">Start</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v19';
+const APP_VERSION = 'v21';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -719,7 +744,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 function startRoutine(routineIdx){
-  const routine = DATA.routines[routineIdx];
+  const routine = routineOverride || DATA.routines[routineIdx];
   if(!routine) return;
   if(routine.type === 'breathing'){
     startBreathing(routineIdx);
@@ -875,6 +900,7 @@ function endSession(){
 let breathAnimationFrame = null;
 let breathAudioContext = null;
 let ambientNodes = [];
+let ambientMasterGain = null;
 let breathingSoundOn = true;
 
 function normalizeBreathingRoutine(routine){
@@ -899,8 +925,111 @@ function buildBreathPhases(cfg){
   return phases.filter(p => p.seconds > 0);
 }
 
+
+let pendingBreathRoutineIndex = null;
+let pendingBreathRoutine = null;
+
+function isVariableBreathValue(v){
+  return String(v).trim() === '?';
+}
+
 function startBreathing(routineIdx){
   const routine = DATA.routines[routineIdx];
+  if(!routine) return;
+
+  const variableFields = [
+    ['inhale', 'Inhale'],
+    ['hold_after_inhale', 'Hold after inhale'],
+    ['exhale', 'Exhale'],
+    ['hold_after_exhale', 'Hold after exhale'],
+    ['duration', 'Duration']
+  ].filter(([key]) => isVariableBreathValue(routine[key]));
+
+  if(variableFields.length === 0){
+    startBreathingResolved(routineIdx);
+    return;
+  }
+
+  pendingBreathRoutineIndex = routineIdx;
+  pendingBreathRoutine = JSON.parse(JSON.stringify(routine));
+
+  document.getElementById('breathSetupTitle').textContent = routine.name || 'Breathing Setup';
+  const fieldsEl = document.getElementById('breathSetupFields');
+  fieldsEl.innerHTML = '';
+
+  variableFields.forEach(([key, label])=>{
+    const wrap = document.createElement('div');
+    wrap.className = 'breath-setup-field';
+
+    const lab = document.createElement('label');
+    lab.htmlFor = 'breathInput_' + key;
+    lab.textContent = label + ' (seconds)';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.id = 'breathInput_' + key;
+    input.inputMode = 'numeric';
+    input.step = '1';
+    input.min = key === 'duration' ? '30' : '1';
+    input.max = key === 'duration' ? '3600' : '30';
+
+    // Friendly starting values for Variable Calming Breath.
+    if(key === 'inhale') input.value = '4';
+    if(key === 'exhale') input.value = '6';
+
+    wrap.appendChild(lab);
+    wrap.appendChild(input);
+    fieldsEl.appendChild(wrap);
+  });
+
+  document.getElementById('breathSetupModal').classList.add('active');
+}
+
+function closeBreathSetup(){
+  document.getElementById('breathSetupModal').classList.remove('active');
+  pendingBreathRoutineIndex = null;
+  pendingBreathRoutine = null;
+}
+
+function confirmBreathSetup(){
+  if(pendingBreathRoutineIndex === null || !pendingBreathRoutine) return;
+
+  const limits = {
+    inhale:[1,30],
+    hold_after_inhale:[0,30],
+    exhale:[1,30],
+    hold_after_exhale:[0,30],
+    duration:[30,3600]
+  };
+
+  for(const key of Object.keys(limits)){
+    if(!isVariableBreathValue(pendingBreathRoutine[key])) continue;
+    const input = document.getElementById('breathInput_' + key);
+    const value = input ? parseInt(input.value, 10) : NaN;
+    const [min,max] = limits[key];
+    if(!Number.isFinite(value) || value < min || value > max){
+      alert(
+        key === 'duration'
+          ? 'Please enter a duration between 30 and 3600 seconds.'
+          : `Please enter a value between ${min} and ${max} seconds.`
+      );
+      if(input) input.focus();
+      return;
+    }
+    pendingBreathRoutine[key] = value;
+  }
+
+  const idx = pendingBreathRoutineIndex;
+  const resolved = pendingBreathRoutine;
+  document.getElementById('breathSetupModal').classList.remove('active');
+  pendingBreathRoutineIndex = null;
+  pendingBreathRoutine = null;
+
+  startBreathingResolved(idx, resolved);
+}
+
+function startBreathingResolved(routineIdx, routineOverride=null){
+  const routine = routineOverride || DATA.routines[routineIdx];
   if(!routine) return;
 
   if(window.speechSynthesis) window.speechSynthesis.cancel();
@@ -932,7 +1061,10 @@ function startBreathing(routineIdx){
   goTo('breathing');
   acquireWakeLock();
   ensureBreathAudio();
-  if(breathingSoundOn) startAmbientSound();
+  if(breathingSoundOn) {
+    startAmbientSound();
+    syncAmbientToBreath(phases[0].key, 0);
+  }
   playPhaseCue(phases[0].key);
   runBreathingFrame();
 }
@@ -981,10 +1113,11 @@ function runBreathingFrame(now = performance.now()){
 
   const phaseRemaining = Math.max(0, phase.seconds - phaseElapsed);
   const phaseProgress = Math.min(1, Math.max(0, phaseElapsed / phase.seconds));
+  syncAmbientToBreath(phase.key, phaseProgress);
 
   document.getElementById('breathTimer').textContent = `${formatBreathTime(remainingTotal)} remaining`;
   document.getElementById('breathPhase').textContent = phase.label;
-  document.getElementById('breathCount').textContent = Math.max(1, Math.ceil(phaseRemaining));
+  document.getElementById('breathCount').textContent = Math.min(phase.seconds, Math.floor(phaseElapsed) + 1);
 
   const orb = document.getElementById('breathOrb');
   if(orb){
@@ -1093,9 +1226,9 @@ function startAmbientSound(){
   if(!breathAudioContext || ambientNodes.length) return;
 
   try{
-    // "Ocean Swell": filtered broadband noise with a very slow rise/fall.
-    // It avoids the pitched oscillators used in v18, which could sound
-    // like an electrical hum on phone speakers.
+    // Ocean Swell, but synced to the current breathing phase instead of
+    // running on its own independent cycle. This makes the background
+    // rise during inhale and soften during exhale.
     const noise = breathAudioContext.createBufferSource();
     const noiseBuffer = createLoopingNoiseBuffer();
     if(!noiseBuffer) return;
@@ -1113,33 +1246,44 @@ function startAmbientSound(){
     lowpass.Q.value = 0.45;
 
     const master = breathAudioContext.createGain();
-    master.gain.value = 0.045;
+    master.gain.value = 0.022;
     master.connect(breathAudioContext.destination);
-
-    // A slow ~12-second swell. The modulation stays subtle so the
-    // phase beeps remain easy to hear over the background.
-    const swell = breathAudioContext.createOscillator();
-    swell.type = 'sine';
-    swell.frequency.value = 0.082;
-
-    const swellDepth = breathAudioContext.createGain();
-    swellDepth.gain.value = 0.024;
-
-    swell.connect(swellDepth);
-    swellDepth.connect(master.gain);
 
     noise.connect(highpass);
     highpass.connect(lowpass);
     lowpass.connect(master);
 
     noise.start();
-    swell.start();
 
-    ambientNodes.push(noise, highpass, lowpass, master, swell, swellDepth);
+    ambientMasterGain = master;
+    ambientNodes.push(noise, highpass, lowpass, master);
   }catch(e){
-    console.warn('Could not start Ocean Swell ambient sound:', e);
+    console.warn('Could not start synced Ocean Swell ambient sound:', e);
     ambientNodes = [];
+    ambientMasterGain = null;
   }
+}
+
+function syncAmbientToBreath(phaseKey, phaseProgress){
+  if(!breathingSoundOn || !breathAudioContext || !ambientMasterGain) return;
+  try{
+    const eased = easeInOutSine(Math.min(1, Math.max(0, phaseProgress || 0)));
+    const quietLevel = 0.022;
+    const fullLevel = 0.052;
+    let target = quietLevel;
+
+    if(phaseKey === 'inhale'){
+      target = quietLevel + (fullLevel - quietLevel) * eased;
+    }else if(phaseKey === 'holdIn'){
+      target = fullLevel;
+    }else if(phaseKey === 'exhale'){
+      target = fullLevel - (fullLevel - quietLevel) * eased;
+    }else if(phaseKey === 'holdOut'){
+      target = quietLevel;
+    }
+
+    ambientMasterGain.gain.setTargetAtTime(target, breathAudioContext.currentTime, 0.09);
+  }catch(e){}
 }
 
 function stopAmbientSound(){
@@ -1148,6 +1292,7 @@ function stopAmbientSound(){
     try{ node.disconnect(); }catch(e){}
   });
   ambientNodes = [];
+  ambientMasterGain = null;
 }
 
 function suspendBreathAudio(){
@@ -1167,6 +1312,11 @@ function resumeBreathAudio(){
   const restartAmbient = ()=>{
     if(breathingSoundOn && breathingSession && !breathingSession.paused && !ambientNodes.length){
       startAmbientSound();
+      const phase = breathingSession.phases[breathingSession.phaseIndex];
+      if(phase){
+        const progress = Math.min(1, Math.max(0, (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds));
+        syncAmbientToBreath(phase.key, progress);
+      }
     }
   };
 
@@ -1195,7 +1345,7 @@ function playPhaseCue(phaseKey){
     osc.type = 'sine';
     osc.frequency.setValueAtTime(freq, now);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.055, now + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.074, now + 0.025);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
     osc.connect(gain);
     gain.connect(breathAudioContext.destination);
@@ -1215,7 +1365,13 @@ function rebuildBreathAudio(){
   }catch(e){}
   breathAudioContext = null;
   ensureBreathAudio();
-  if(breathingSoundOn) startAmbientSound();
+  if(breathingSoundOn) {
+    startAmbientSound();
+    if(breathingSession){
+      const phase = breathingSession.phases[breathingSession.phaseIndex];
+      if(phase) syncAmbientToBreath(phase.key, 0);
+    }
+  }
 }
 
 function toggleBreathingSound(){

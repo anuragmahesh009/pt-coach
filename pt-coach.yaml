@@ -731,3 +731,11 @@ routines:
     duration: 300
     music: ambient
 
+  - name: Variable Calming Breath
+    type: breathing
+    inhale: "?"
+    hold_after_inhale: 0
+    exhale: "?"
+    hold_after_exhale: 0
+    duration: 300
+    music: ambient
