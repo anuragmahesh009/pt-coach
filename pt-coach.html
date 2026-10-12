@@ -574,7 +574,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v21';
+const APP_VERSION = 'v21.1';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -744,7 +744,7 @@ document.addEventListener('visibilitychange', ()=>{
 });
 
 function startRoutine(routineIdx){
-  const routine = routineOverride || DATA.routines[routineIdx];
+  const routine = DATA.routines[routineIdx];
   if(!routine) return;
   if(routine.type === 'breathing'){
     startBreathing(routineIdx);
