@@ -7,6 +7,9 @@
 <link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
 <style>
   :root{
@@ -346,6 +349,76 @@
   .empty-state{
     text-align:center; color:var(--text-dim); padding: 60px 20px; font-size:15px; line-height:1.6;
   }
+
+  /* ---------- BREATHING ---------- */
+  #breathing{
+    padding: 12px 20px 18px;
+    justify-content:space-between;
+    overflow:hidden;
+  }
+  .breath-top{
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .breath-title{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:20px; font-weight:600;
+  }
+  .breath-body{
+    flex:1; min-height:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding:8px 0;
+  }
+  .breath-timer{
+    color:var(--text-dim); font-size:14px; font-weight:700;
+    letter-spacing:0.06em; margin-bottom:18px;
+  }
+  .breath-orb-wrap{
+    width:min(70vw, 320px); aspect-ratio:1;
+    display:flex; align-items:center; justify-content:center;
+    position:relative; margin:0 auto 22px;
+  }
+  .breath-orb{
+    width:72%; height:72%; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, rgba(255,255,255,0.24), rgba(127,163,122,0.28) 42%, rgba(127,163,122,0.10) 72%);
+    border:2px solid rgba(244,241,234,0.72);
+    box-shadow:
+      0 0 0 18px rgba(127,163,122,0.10),
+      0 0 0 38px rgba(127,163,122,0.07),
+      0 0 0 60px rgba(127,163,122,0.04);
+    transform:scale(0.55);
+    will-change:transform;
+  }
+  .breath-phase{
+    font-family:'Fredoka', system-ui, sans-serif;
+    font-size:32px; font-weight:600; letter-spacing:0.03em;
+  }
+  .breath-count{
+    font-size:22px; color:var(--accent-go); font-weight:700; margin-top:4px;
+    min-height:28px;
+  }
+  .breath-pattern{
+    margin-top:14px; color:var(--text-dim); font-size:13px; line-height:1.5;
+  }
+  .breath-bottom{
+    display:flex; flex-direction:column; gap:10px; align-items:center;
+    flex-shrink:0;
+  }
+  .breath-controls{
+    display:flex; gap:10px; width:100%; max-width:480px;
+  }
+  .breath-btn{
+    flex:1; padding:12px 10px; border-radius:13px; text-align:center;
+    font-size:14px; font-weight:700; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg-raised); color:var(--text);
+  }
+  .breath-btn.active{
+    background:var(--accent-go-soft); color:var(--accent-go); border-color:var(--accent-go);
+  }
+  .breath-btn.stop{
+    flex:0 0 88px; background:var(--accent-stop-soft);
+    color:var(--accent-stop); border-color:var(--accent-stop);
+  }
+
 </style>
 </head>
 <body>
@@ -421,6 +494,32 @@
     </div>
   </div>
 
+
+  <!-- BREATHING -->
+  <div class="screen" id="breathing">
+    <div class="breath-top">
+      <div class="breath-title" id="breathTitle">Breathing</div>
+      <div class="iconbtn" onclick="endBreathing()">✕</div>
+    </div>
+    <div class="breath-body">
+      <div class="breath-timer" id="breathTimer">5:00 remaining</div>
+      <div class="breath-orb-wrap">
+        <div class="breath-orb" id="breathOrb"></div>
+      </div>
+      <div class="breath-phase" id="breathPhase">Ready</div>
+      <div class="breath-count" id="breathCount"></div>
+      <div class="breath-pattern" id="breathPattern"></div>
+    </div>
+    <div class="breath-bottom">
+      <div class="breath-controls">
+        <div class="breath-btn active" id="breathSoundBtn" onclick="toggleBreathingSound()">♫ Ambient On</div>
+        <div class="breath-btn" id="breathPauseBtn" onclick="toggleBreathingPause()">Pause</div>
+        <div class="breath-btn stop" onclick="endBreathing()">End</div>
+      </div>
+      <div class="tap-hint">Soft tones mark each phase so you can breathe with your eyes closed.</div>
+    </div>
+  </div>
+
   <!-- VIEW DATA (read-only) -->
   <div class="screen" id="manage" style="position:relative;">
     <div class="topbar">
@@ -450,7 +549,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v17';
+const APP_VERSION = 'v18';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -499,7 +598,7 @@ let dataLoadError = null;
 
 async function loadData(){
   try{
-    const res = await fetch(DATA_FILE, { cache: 'no-store' });
+    const res = await fetch(`${DATA_FILE}?v=${encodeURIComponent(APP_VERSION)}`, { cache: 'no-store' });
     if(!res.ok){
       throw new Error('Could not fetch ' + DATA_FILE + ' (HTTP ' + res.status + ')');
     }
@@ -529,20 +628,33 @@ function goTo(screenId){
 function renderHome(){
   const versionEl = document.getElementById('versionTag');
   if(versionEl) versionEl.textContent = APP_VERSION;
+  syncSpeechRateUI();
+
   const list = document.getElementById('routineList');
   list.innerHTML = '';
   if(DATA.routines.length === 0){
-    list.innerHTML = '<div class="empty-state">No routines yet.<br>Tap the gear icon to add one.</div>';
+    list.innerHTML = '<div class="empty-state">No routines yet.<br>Tap the gear icon to view your data.</div>';
     return;
   }
+
   DATA.routines.forEach((r, idx)=>{
     const card = document.createElement('div');
     card.className = 'routine-card';
-    card.onclick = ()=> startSession(idx);
+    card.onclick = ()=> startRoutine(idx);
+
+    let sub = '';
+    if(r.type === 'breathing'){
+      const mins = Math.max(1, Math.round((Number(r.duration) || 0) / 60));
+      sub = `Breathing · ${mins} min · ${Number(r.inhale) || 0}s in / ${Number(r.exhale) || 0}s out`;
+    }else{
+      const exercises = Array.isArray(r.exercises) ? r.exercises : [];
+      sub = `${exercises.length} exercise${exercises.length===1?'':'s'}`;
+    }
+
     card.innerHTML = `
       <div>
         <div class="rname">${escapeHtml(r.name)}</div>
-        <div class="rcount">${r.exercises.length} exercise${r.exercises.length===1?'':'s'}</div>
+        <div class="rcount">${escapeHtml(sub)}</div>
       </div>
       <div class="arrow">▶</div>
     `;
@@ -551,7 +663,8 @@ function renderHome(){
 }
 
 /* ===================== SESSION STATE ===================== */
-let session = null; // { routine, exercises:[...], index }
+let session = null; // exercise session: { routine, exercises:[...], index }
+let breathingSession = null;
 
 /* ===================== ORIENTATION ===================== */
 // Safari on iOS doesn't let a webpage force portrait orientation, so instead
@@ -592,10 +705,20 @@ function releaseWakeLock(){
 // to the background. If the person returns to the app mid-session, try to
 // re-acquire it so the screen still won't lock for the rest of the routine.
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'visible' && session && !wakeLock){
+  if(document.visibilityState === 'visible' && (session || breathingSession) && !wakeLock){
     acquireWakeLock();
   }
 });
+
+function startRoutine(routineIdx){
+  const routine = DATA.routines[routineIdx];
+  if(!routine) return;
+  if(routine.type === 'breathing'){
+    startBreathing(routineIdx);
+  }else{
+    startSession(routineIdx);
+  }
+}
 
 function startSession(routineIdx){
   const routine = DATA.routines[routineIdx];
@@ -739,6 +862,291 @@ function endSession(){
   goTo('home');
 }
 
+
+/* ===================== BREATHING ROUTINES ===================== */
+let breathAnimationFrame = null;
+let breathAudioContext = null;
+let ambientNodes = [];
+let breathingSoundOn = true;
+
+function normalizeBreathingRoutine(routine){
+  return {
+    routine,
+    inhale: Math.max(1, Number(routine.inhale) || 4),
+    holdAfterInhale: Math.max(0, Number(routine.hold_after_inhale) || 0),
+    exhale: Math.max(1, Number(routine.exhale) || 6),
+    holdAfterExhale: Math.max(0, Number(routine.hold_after_exhale) || 0),
+    duration: Math.max(10, Number(routine.duration) || 300),
+    music: routine.music || 'ambient'
+  };
+}
+
+function buildBreathPhases(cfg){
+  const phases = [
+    {key:'inhale', label:'INHALE', seconds:cfg.inhale},
+    {key:'holdIn', label:'HOLD', seconds:cfg.holdAfterInhale},
+    {key:'exhale', label:'EXHALE', seconds:cfg.exhale},
+    {key:'holdOut', label:'HOLD', seconds:cfg.holdAfterExhale}
+  ];
+  return phases.filter(p => p.seconds > 0);
+}
+
+function startBreathing(routineIdx){
+  const routine = DATA.routines[routineIdx];
+  if(!routine) return;
+
+  if(window.speechSynthesis) window.speechSynthesis.cancel();
+  releaseWakeLock();
+
+  const cfg = normalizeBreathingRoutine(routine);
+  const phases = buildBreathPhases(cfg);
+  if(phases.length === 0) return;
+
+  breathingSoundOn = cfg.music !== 'none';
+  breathingSession = {
+    ...cfg,
+    phases,
+    phaseIndex:0,
+    phaseStartedAt:performance.now(),
+    startedAt:performance.now(),
+    paused:false,
+    pausedAt:null,
+    totalPausedMs:0,
+    lastSecond:null,
+    lastPhaseKey:null
+  };
+
+  document.getElementById('breathTitle').textContent = routine.name || 'Breathing';
+  document.getElementById('breathPattern').textContent = breathingPatternText(cfg);
+  updateBreathingSoundButton();
+  document.getElementById('breathPauseBtn').textContent = 'Pause';
+
+  goTo('breathing');
+  acquireWakeLock();
+  ensureBreathAudio();
+  if(breathingSoundOn) startAmbientSound();
+  playPhaseCue(phases[0].key);
+  runBreathingFrame();
+}
+
+function breathingPatternText(cfg){
+  const parts = [`Inhale ${cfg.inhale}s`];
+  if(cfg.holdAfterInhale) parts.push(`Hold ${cfg.holdAfterInhale}s`);
+  parts.push(`Exhale ${cfg.exhale}s`);
+  if(cfg.holdAfterExhale) parts.push(`Hold ${cfg.holdAfterExhale}s`);
+  return parts.join('  ·  ');
+}
+
+function formatBreathTime(totalSeconds){
+  const s = Math.max(0, Math.ceil(totalSeconds));
+  const m = Math.floor(s / 60);
+  const rem = s % 60;
+  return `${m}:${String(rem).padStart(2,'0')}`;
+}
+
+function runBreathingFrame(now = performance.now()){
+  if(!breathingSession) return;
+  const s = breathingSession;
+
+  if(s.paused){
+    breathAnimationFrame = requestAnimationFrame(runBreathingFrame);
+    return;
+  }
+
+  const elapsedTotalMs = now - s.startedAt - s.totalPausedMs;
+  const remainingTotal = s.duration - elapsedTotalMs / 1000;
+  if(remainingTotal <= 0){
+    finishBreathing();
+    return;
+  }
+
+  let phase = s.phases[s.phaseIndex];
+  let phaseElapsed = (now - s.phaseStartedAt) / 1000;
+
+  while(phaseElapsed >= phase.seconds){
+    s.phaseStartedAt += phase.seconds * 1000;
+    s.phaseIndex = (s.phaseIndex + 1) % s.phases.length;
+    phase = s.phases[s.phaseIndex];
+    phaseElapsed = (now - s.phaseStartedAt) / 1000;
+    playPhaseCue(phase.key);
+  }
+
+  const phaseRemaining = Math.max(0, phase.seconds - phaseElapsed);
+  const phaseProgress = Math.min(1, Math.max(0, phaseElapsed / phase.seconds));
+
+  document.getElementById('breathTimer').textContent = `${formatBreathTime(remainingTotal)} remaining`;
+  document.getElementById('breathPhase').textContent = phase.label;
+  document.getElementById('breathCount').textContent = Math.max(1, Math.ceil(phaseRemaining));
+
+  const orb = document.getElementById('breathOrb');
+  if(orb){
+    let scale = 0.55;
+    if(phase.key === 'inhale'){
+      scale = 0.55 + (0.45 * easeInOutSine(phaseProgress));
+    }else if(phase.key === 'holdIn'){
+      scale = 1.0;
+    }else if(phase.key === 'exhale'){
+      scale = 1.0 - (0.45 * easeInOutSine(phaseProgress));
+    }else{
+      scale = 0.55;
+    }
+    orb.style.transform = `scale(${scale.toFixed(4)})`;
+  }
+
+  breathAnimationFrame = requestAnimationFrame(runBreathingFrame);
+}
+
+function easeInOutSine(x){
+  return -(Math.cos(Math.PI * x) - 1) / 2;
+}
+
+function toggleBreathingPause(){
+  if(!breathingSession) return;
+  const s = breathingSession;
+  if(!s.paused){
+    s.paused = true;
+    s.pausedAt = performance.now();
+    document.getElementById('breathPauseBtn').textContent = 'Resume';
+    suspendBreathAudio();
+  }else{
+    const now = performance.now();
+    const pauseMs = now - s.pausedAt;
+    s.totalPausedMs += pauseMs;
+    s.phaseStartedAt += pauseMs;
+    s.paused = false;
+    s.pausedAt = null;
+    document.getElementById('breathPauseBtn').textContent = 'Pause';
+    if(breathingSoundOn) resumeBreathAudio();
+  }
+}
+
+function finishBreathing(){
+  if(!breathingSession) return;
+  stopBreathingEngine();
+  document.getElementById('breathPhase').textContent = 'DONE';
+  document.getElementById('breathCount').textContent = 'Nice work';
+  document.getElementById('breathTimer').textContent = '0:00 remaining';
+  const orb = document.getElementById('breathOrb');
+  if(orb) orb.style.transform = 'scale(0.55)';
+  setTimeout(()=>{
+    if(!breathingSession) goTo('home');
+  }, 1200);
+}
+
+function endBreathing(){
+  stopBreathingEngine();
+  goTo('home');
+}
+
+function stopBreathingEngine(){
+  if(breathAnimationFrame){
+    cancelAnimationFrame(breathAnimationFrame);
+    breathAnimationFrame = null;
+  }
+  stopAmbientSound();
+  releaseWakeLock();
+  breathingSession = null;
+}
+
+function ensureBreathAudio(){
+  try{
+    if(!breathAudioContext){
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if(Ctx) breathAudioContext = new Ctx();
+    }
+    if(breathAudioContext && breathAudioContext.state === 'suspended'){
+      breathAudioContext.resume();
+    }
+  }catch(e){
+    console.warn('Breathing audio unavailable:', e);
+  }
+}
+
+function startAmbientSound(){
+  ensureBreathAudio();
+  if(!breathAudioContext || ambientNodes.length) return;
+  try{
+    const master = breathAudioContext.createGain();
+    master.gain.value = 0.018;
+    master.connect(breathAudioContext.destination);
+
+    const freqs = [174.61, 261.63, 349.23];
+    freqs.forEach((freq, i)=>{
+      const osc = breathAudioContext.createOscillator();
+      const gain = breathAudioContext.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.value = i === 0 ? 0.50 : 0.22;
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start();
+      ambientNodes.push(osc, gain);
+    });
+    ambientNodes.push(master);
+  }catch(e){
+    console.warn('Could not start ambient sound:', e);
+    ambientNodes = [];
+  }
+}
+
+function stopAmbientSound(){
+  ambientNodes.forEach(node=>{
+    try{ if(typeof node.stop === 'function') node.stop(); }catch(e){}
+    try{ node.disconnect(); }catch(e){}
+  });
+  ambientNodes = [];
+}
+
+function suspendBreathAudio(){
+  try{ if(breathAudioContext && breathAudioContext.state === 'running') breathAudioContext.suspend(); }catch(e){}
+}
+
+function resumeBreathAudio(){
+  ensureBreathAudio();
+  if(breathingSoundOn && !ambientNodes.length) startAmbientSound();
+}
+
+function playPhaseCue(phaseKey){
+  if(!breathingSoundOn) return;
+  ensureBreathAudio();
+  if(!breathAudioContext) return;
+  try{
+    const now = breathAudioContext.currentTime;
+    const osc = breathAudioContext.createOscillator();
+    const gain = breathAudioContext.createGain();
+    const freq = phaseKey === 'inhale' ? 523.25 :
+                 phaseKey === 'exhale' ? 392.00 : 329.63;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.055, now + 0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
+    osc.connect(gain);
+    gain.connect(breathAudioContext.destination);
+    osc.start(now);
+    osc.stop(now + 0.42);
+  }catch(e){}
+}
+
+function toggleBreathingSound(){
+  breathingSoundOn = !breathingSoundOn;
+  updateBreathingSoundButton();
+  if(breathingSoundOn){
+    startAmbientSound();
+    if(breathingSession) playPhaseCue(breathingSession.phases[breathingSession.phaseIndex].key);
+  }else{
+    stopAmbientSound();
+  }
+}
+
+function updateBreathingSoundButton(){
+  const btn = document.getElementById('breathSoundBtn');
+  if(!btn) return;
+  btn.textContent = breathingSoundOn ? '♫ Ambient On' : '♫ Ambient Off';
+  btn.classList.toggle('active', breathingSoundOn);
+}
+
+
 /* ===================== TEXT-TO-SPEECH ===================== */
 let speechUnlocked = false;
 let cachedVoice = null;
@@ -801,11 +1209,9 @@ function populateVoiceSelector(){
   if(previous && voices.some(v => v.name === previous)){
     select.value = previous;
   }else{
+    // Keep the saved preference. iOS can report an empty/partial voice list
+    // during startup and expose the full list a moment later.
     select.value = '';
-    if(previous){
-      selectedVoiceName = '';
-      try{ localStorage.removeItem('ptCoachVoice'); }catch(e){}
-    }
   }
 }
 
@@ -863,16 +1269,30 @@ function setSpeakingVisual(isSpeaking){
     : 'Ready';
 }
 
-// Speaking rate is controlled by a non-persistent in-session slider on the
-// session screen. It always resets to DEFAULT_SPEECH_RATE when the app starts
-// or a new session begins — it deliberately does not save between sessions.
+// Speech speed is remembered on this device. If nothing has been saved yet,
+// use the familiar 0.70 default.
 const DEFAULT_SPEECH_RATE = 0.70;
 let currentSpeechRate = DEFAULT_SPEECH_RATE;
+try{
+  const savedRate = parseFloat(localStorage.getItem('ptCoachSpeechRate'));
+  if(Number.isFinite(savedRate) && savedRate >= 0.5 && savedRate <= 1.1){
+    currentSpeechRate = savedRate;
+  }
+}catch(e){}
+
+function syncSpeechRateUI(){
+  const slider = document.getElementById('rateSlider');
+  const label = document.getElementById('rateLabel');
+  if(slider) slider.value = currentSpeechRate.toFixed(2);
+  if(label) label.textContent = currentSpeechRate.toFixed(2);
+}
 
 function onRateSliderChange(value){
-  currentSpeechRate = parseFloat(value);
-  const label = document.getElementById('rateLabel');
-  if(label) label.textContent = currentSpeechRate.toFixed(2);
+  const parsed = parseFloat(value);
+  if(!Number.isFinite(parsed)) return;
+  currentSpeechRate = parsed;
+  syncSpeechRateUI();
+  try{ localStorage.setItem('ptCoachSpeechRate', currentSpeechRate.toFixed(2)); }catch(e){}
 }
 
 function speak(text, onEnd){
@@ -917,10 +1337,14 @@ function renderManageList(){
     const card = document.createElement('div');
     card.className='item-card';
     card.onclick = ()=> viewRoutine(idx);
+    const isBreathing = r.type === 'breathing';
+    const countText = isBreathing
+      ? `Breathing · ${formatBreathTime(Number(r.duration) || 300)}`
+      : `${(r.exercises || []).length} exercise${(r.exercises || []).length===1?'':'s'}`;
     card.innerHTML = `
       <div>
         <div class="iname">${escapeHtml(r.name)}</div>
-        <div class="isub">${r.exercises.length} exercise${r.exercises.length===1?'':'s'}</div>
+        <div class="isub">${escapeHtml(countText)}</div>
       </div>
       <div class="item-actions"><div class="small-icon">›</div></div>`;
     listEl.appendChild(card);
@@ -933,17 +1357,41 @@ function viewRoutine(idx){
   if(!r) return;
   document.getElementById('formTitle').textContent = r.name;
   const body = document.getElementById('formBody');
-  body.innerHTML = `
-    <div class="field">
-      <label>Exercises in order</label>
-      <div class="checklist">
-        ${r.exercises.map((ex,i)=>`<div class="check-card checked"><div class="checkbox">${i+1}</div><div>${escapeHtml(ex.name)}</div></div>`).join('')}
+
+  if(r.type === 'breathing'){
+    const cfg = normalizeBreathingRoutine(r);
+    body.innerHTML = `
+      <div class="field">
+        <label>Breathing pattern</label>
+        <div class="steps-box" style="max-width:none;">
+          <div style="line-height:1.8;">
+            <strong>Inhale:</strong> ${cfg.inhale} seconds<br>
+            <strong>Hold after inhale:</strong> ${cfg.holdAfterInhale} seconds<br>
+            <strong>Exhale:</strong> ${cfg.exhale} seconds<br>
+            <strong>Hold after exhale:</strong> ${cfg.holdAfterExhale} seconds<br>
+            <strong>Duration:</strong> ${formatBreathTime(cfg.duration)}<br>
+            <strong>Sound:</strong> ${cfg.music === 'none' ? 'Off' : 'Ambient'}
+          </div>
+        </div>
       </div>
-    </div>
-    <p class="tap-hint" style="text-align:left; margin-top:18px;">
-      To change this, edit pt-coach.yaml directly on GitHub.
-    </p>
-  `;
+      <p class="tap-hint" style="text-align:left; margin-top:18px;">
+        To change this, edit pt-coach.yaml directly on GitHub.
+      </p>
+    `;
+  }else{
+    const exercises = r.exercises || [];
+    body.innerHTML = `
+      <div class="field">
+        <label>Exercises in order</label>
+        <div class="checklist">
+          ${exercises.map((ex,i)=>`<div class="check-card checked"><div class="checkbox">${i+1}</div><div>${escapeHtml(ex.name)}</div></div>`).join('')}
+        </div>
+      </div>
+      <p class="tap-hint" style="text-align:left; margin-top:18px;">
+        To change this, edit pt-coach.yaml directly on GitHub.
+      </p>
+    `;
+  }
   goTo('editForm');
 }
 
@@ -974,6 +1422,7 @@ async function initApp(){
     }
 
     renderHome();
+    syncSpeechRateUI();
     populateVoiceSelector();
     // iOS may expose the voice list a moment after page load. Try again shortly.
     setTimeout(populateVoiceSelector, 250);

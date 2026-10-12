@@ -1,11 +1,13 @@
 # PT Coach data file
 # -------------------
-# Exercises are nested directly under each routine.
-# To add/edit/remove an exercise, just edit it under its routine.
-# To reorder exercises, just move the blocks around.
-# To add a new routine, add a new '- name:' block with its exercises.
+# PT Coach supports two routine types:
+# 1) Exercise routines: exercises are nested directly under each routine.
+#    Each exercise: name, sets, reps, hold (seconds, optional), steps (list).
+# 2) Breathing routines: set type: breathing and define inhale/exhale timing,
+#    optional holds, total duration (seconds), and music: ambient or none.
 #
-# Each exercise: name, sets, reps, hold (seconds, optional), steps (list)
+# To add/edit/remove an exercise, edit it under its routine.
+# To reorder exercises or routines, move the YAML blocks around.
 
 routines:
 
@@ -701,3 +703,31 @@ routines:
           - Raise the upper leg in a controlled motion, then lower it.
           - Turn over and repeat on the other side.
           - Progress gradually on each side as tolerated.
+
+  - name: Calming Breath
+    type: breathing
+    inhale: 4
+    hold_after_inhale: 0
+    exhale: 6
+    hold_after_exhale: 0
+    duration: 300
+    music: ambient
+
+  - name: Equal Breathing
+    type: breathing
+    inhale: 4
+    hold_after_inhale: 0
+    exhale: 4
+    hold_after_exhale: 0
+    duration: 300
+    music: ambient
+
+  - name: Box Breathing
+    type: breathing
+    inhale: 4
+    hold_after_inhale: 4
+    exhale: 4
+    hold_after_exhale: 4
+    duration: 300
+    music: ambient
+
