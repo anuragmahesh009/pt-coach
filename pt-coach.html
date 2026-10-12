@@ -549,7 +549,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v18';
+const APP_VERSION = 'v19';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -705,8 +705,16 @@ function releaseWakeLock(){
 // to the background. If the person returns to the app mid-session, try to
 // re-acquire it so the screen still won't lock for the rest of the routine.
 document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'visible' && (session || breathingSession) && !wakeLock){
-    acquireWakeLock();
+  if(document.visibilityState === 'visible'){
+    if((session || breathingSession) && !wakeLock){
+      acquireWakeLock();
+    }
+    // iOS may suspend Web Audio while the app is backgrounded.
+    // When returning to an active breathing session, explicitly wake it
+    // and rebuild the ambient layer if Safari dropped it.
+    if(breathingSession && !breathingSession.paused && breathingSoundOn){
+      resumeBreathAudio();
+    }
   }
 });
 
@@ -1050,41 +1058,86 @@ function stopBreathingEngine(){
 
 function ensureBreathAudio(){
   try{
+    if(breathAudioContext && breathAudioContext.state === 'closed'){
+      breathAudioContext = null;
+      ambientNodes = [];
+    }
     if(!breathAudioContext){
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if(Ctx) breathAudioContext = new Ctx();
     }
     if(breathAudioContext && breathAudioContext.state === 'suspended'){
-      breathAudioContext.resume();
+      const resumed = breathAudioContext.resume();
+      if(resumed && typeof resumed.catch === 'function'){
+        resumed.catch(()=>{});
+      }
     }
   }catch(e){
     console.warn('Breathing audio unavailable:', e);
   }
 }
 
+function createLoopingNoiseBuffer(seconds=24){
+  if(!breathAudioContext) return null;
+  const length = Math.max(1, Math.floor(breathAudioContext.sampleRate * seconds));
+  const buffer = breathAudioContext.createBuffer(1, length, breathAudioContext.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0; i<length; i++){
+    data[i] = Math.random() * 2 - 1;
+  }
+  return buffer;
+}
+
 function startAmbientSound(){
   ensureBreathAudio();
   if(!breathAudioContext || ambientNodes.length) return;
+
   try{
+    // "Ocean Swell": filtered broadband noise with a very slow rise/fall.
+    // It avoids the pitched oscillators used in v18, which could sound
+    // like an electrical hum on phone speakers.
+    const noise = breathAudioContext.createBufferSource();
+    const noiseBuffer = createLoopingNoiseBuffer();
+    if(!noiseBuffer) return;
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const highpass = breathAudioContext.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 90;
+    highpass.Q.value = 0.35;
+
+    const lowpass = breathAudioContext.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.value = 950;
+    lowpass.Q.value = 0.45;
+
     const master = breathAudioContext.createGain();
-    master.gain.value = 0.018;
+    master.gain.value = 0.045;
     master.connect(breathAudioContext.destination);
 
-    const freqs = [174.61, 261.63, 349.23];
-    freqs.forEach((freq, i)=>{
-      const osc = breathAudioContext.createOscillator();
-      const gain = breathAudioContext.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      gain.gain.value = i === 0 ? 0.50 : 0.22;
-      osc.connect(gain);
-      gain.connect(master);
-      osc.start();
-      ambientNodes.push(osc, gain);
-    });
-    ambientNodes.push(master);
+    // A slow ~12-second swell. The modulation stays subtle so the
+    // phase beeps remain easy to hear over the background.
+    const swell = breathAudioContext.createOscillator();
+    swell.type = 'sine';
+    swell.frequency.value = 0.082;
+
+    const swellDepth = breathAudioContext.createGain();
+    swellDepth.gain.value = 0.024;
+
+    swell.connect(swellDepth);
+    swellDepth.connect(master.gain);
+
+    noise.connect(highpass);
+    highpass.connect(lowpass);
+    lowpass.connect(master);
+
+    noise.start();
+    swell.start();
+
+    ambientNodes.push(noise, highpass, lowpass, master, swell, swellDepth);
   }catch(e){
-    console.warn('Could not start ambient sound:', e);
+    console.warn('Could not start Ocean Swell ambient sound:', e);
     ambientNodes = [];
   }
 }
@@ -1098,12 +1151,35 @@ function stopAmbientSound(){
 }
 
 function suspendBreathAudio(){
-  try{ if(breathAudioContext && breathAudioContext.state === 'running') breathAudioContext.suspend(); }catch(e){}
+  try{
+    if(breathAudioContext && breathAudioContext.state === 'running'){
+      breathAudioContext.suspend();
+    }
+  }catch(e){}
 }
 
 function resumeBreathAudio(){
   ensureBreathAudio();
-  if(breathingSoundOn && !ambientNodes.length) startAmbientSound();
+  if(!breathAudioContext) return;
+
+  // Safari can report an active setting while the actual audio graph was
+  // lost/suspended in the background. Recreate the ambient layer as needed.
+  const restartAmbient = ()=>{
+    if(breathingSoundOn && breathingSession && !breathingSession.paused && !ambientNodes.length){
+      startAmbientSound();
+    }
+  };
+
+  if(breathAudioContext.state === 'suspended'){
+    try{
+      const p = breathAudioContext.resume();
+      if(p && typeof p.then === 'function'){
+        p.then(restartAmbient).catch(()=>{});
+      }
+    }catch(e){}
+  }else{
+    restartAmbient();
+  }
 }
 
 function playPhaseCue(phaseKey){
@@ -1128,11 +1204,25 @@ function playPhaseCue(phaseKey){
   }catch(e){}
 }
 
+function rebuildBreathAudio(){
+  // Called from a user tap. Rebuilding the context is a reliable recovery
+  // path on iOS if Safari silently suspended or lost the old audio graph.
+  stopAmbientSound();
+  try{
+    if(breathAudioContext && breathAudioContext.state !== 'closed'){
+      breathAudioContext.close();
+    }
+  }catch(e){}
+  breathAudioContext = null;
+  ensureBreathAudio();
+  if(breathingSoundOn) startAmbientSound();
+}
+
 function toggleBreathingSound(){
   breathingSoundOn = !breathingSoundOn;
   updateBreathingSoundButton();
   if(breathingSoundOn){
-    startAmbientSound();
+    rebuildBreathAudio();
     if(breathingSession) playPhaseCue(breathingSession.phases[breathingSession.phaseIndex].key);
   }else{
     stopAmbientSound();
