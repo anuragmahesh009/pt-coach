@@ -574,7 +574,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v24';
+const APP_VERSION = 'v25';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -903,6 +903,12 @@ let ambientNodes = [];
 let ambientMasterGain = null;
 let breathingSoundOn = true;
 
+// Shared natural-voice guidance for all breathing routines.
+const BREATH_INTRO_AUDIO = 'breath-intro.mp3';
+const BREATH_OUTRO_AUDIO = 'breath-outro.mp3';
+let guidedBreathAudio = null;
+let breathingFlowToken = 0;
+
 function normalizeBreathingRoutine(routine){
   return {
     routine,
@@ -1033,6 +1039,8 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   if(!routine) return;
 
   if(window.speechSynthesis) window.speechSynthesis.cancel();
+  stopGuidedBreathAudio();
+  stopAmbientSound();
   releaseWakeLock();
 
   const cfg = normalizeBreathingRoutine(routine);
@@ -1040,12 +1048,45 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   if(phases.length === 0) return;
 
   breathingSoundOn = cfg.music !== 'none';
+  breathingSession = null;
+
+  document.getElementById('breathTitle').textContent = routine.name || 'Breathing';
+  document.getElementById('breathPattern').textContent = breathingPatternText(cfg);
+  document.getElementById('breathTimer').textContent = 'Getting settled';
+  document.getElementById('breathPhase').textContent = 'GET COMFORTABLE';
+  document.getElementById('breathCount').textContent = '';
+  document.getElementById('breathPauseBtn').textContent = 'Pause';
+  updateBreathingSoundButton();
+
+  const orb = document.getElementById('breathOrb');
+  if(orb) orb.style.transform = 'scale(0.55)';
+
+  goTo('breathing');
+  acquireWakeLock();
+
+  // Prime Web Audio during the user's tap so iOS will allow the
+  // ambient sound to begin automatically after the intro finishes.
+  ensureBreathAudio();
+
+  const token = ++breathingFlowToken;
+  playGuidedBreathAudio(BREATH_INTRO_AUDIO, ()=>{
+    if(token !== breathingFlowToken) return;
+    beginBreathingEngine(cfg, phases);
+  }, ()=>{
+    // If the clip cannot be loaded, continue with the breathing routine.
+    if(token !== breathingFlowToken) return;
+    beginBreathingEngine(cfg, phases);
+  });
+}
+
+function beginBreathingEngine(cfg, phases){
+  const now = performance.now();
   breathingSession = {
     ...cfg,
     phases,
     phaseIndex:0,
-    phaseStartedAt:performance.now(),
-    startedAt:performance.now(),
+    phaseStartedAt:now,
+    startedAt:now,
     paused:false,
     pausedAt:null,
     totalPausedMs:0,
@@ -1053,20 +1094,61 @@ function startBreathingResolved(routineIdx, routineOverride=null){
     lastPhaseKey:null
   };
 
-  document.getElementById('breathTitle').textContent = routine.name || 'Breathing';
-  document.getElementById('breathPattern').textContent = breathingPatternText(cfg);
-  updateBreathingSoundButton();
+  document.getElementById('breathTimer').textContent = `${formatBreathTime(cfg.duration)} remaining`;
+  document.getElementById('breathPhase').textContent = phases[0].label;
+  document.getElementById('breathCount').textContent = '1';
   document.getElementById('breathPauseBtn').textContent = 'Pause';
 
-  goTo('breathing');
-  acquireWakeLock();
   ensureBreathAudio();
-  if(breathingSoundOn) {
+  if(breathingSoundOn){
     startAmbientSound();
     syncAmbientToBreath(phases[0].key, 0);
   }
   playPhaseCue(phases[0].key);
   runBreathingFrame();
+}
+
+function playGuidedBreathAudio(src, onEnded, onError){
+  stopGuidedBreathAudio();
+
+  try{
+    const audio = new Audio(src);
+    guidedBreathAudio = audio;
+    audio.preload = 'auto';
+
+    const cleanup = ()=>{
+      if(guidedBreathAudio === audio) guidedBreathAudio = null;
+    };
+
+    audio.onended = ()=>{
+      cleanup();
+      if(typeof onEnded === 'function') onEnded();
+    };
+
+    audio.onerror = ()=>{
+      cleanup();
+      if(typeof onError === 'function') onError();
+    };
+
+    const p = audio.play();
+    if(p && typeof p.catch === 'function'){
+      p.catch(()=>{
+        cleanup();
+        if(typeof onError === 'function') onError();
+      });
+    }
+  }catch(e){
+    if(typeof onError === 'function') onError();
+  }
+}
+
+function stopGuidedBreathAudio(){
+  if(!guidedBreathAudio) return;
+  try{
+    guidedBreathAudio.pause();
+    guidedBreathAudio.currentTime = 0;
+  }catch(e){}
+  guidedBreathAudio = null;
 }
 
 function breathingPatternText(cfg){
@@ -1163,18 +1245,34 @@ function toggleBreathingPause(){
 
 function finishBreathing(){
   if(!breathingSession) return;
-  stopBreathingEngine();
+
+  if(breathAnimationFrame){
+    cancelAnimationFrame(breathAnimationFrame);
+    breathAnimationFrame = null;
+  }
+  stopAmbientSound();
+  breathingSession = null;
+
   document.getElementById('breathPhase').textContent = 'DONE';
   document.getElementById('breathCount').textContent = 'Nice work';
   document.getElementById('breathTimer').textContent = '0:00 remaining';
   const orb = document.getElementById('breathOrb');
   if(orb) orb.style.transform = 'scale(0.55)';
-  setTimeout(()=>{
-    if(!breathingSession) goTo('home');
-  }, 1200);
+
+  const token = ++breathingFlowToken;
+  playGuidedBreathAudio(BREATH_OUTRO_AUDIO, ()=>{
+    if(token !== breathingFlowToken) return;
+    releaseWakeLock();
+    goTo('home');
+  }, ()=>{
+    if(token !== breathingFlowToken) return;
+    releaseWakeLock();
+    setTimeout(()=>goTo('home'), 500);
+  });
 }
 
 function endBreathing(){
+  ++breathingFlowToken;
   stopBreathingEngine();
   goTo('home');
 }
@@ -1185,6 +1283,7 @@ function stopBreathingEngine(){
     breathAnimationFrame = null;
   }
   stopAmbientSound();
+  stopGuidedBreathAudio();
   releaseWakeLock();
   breathingSession = null;
 }
