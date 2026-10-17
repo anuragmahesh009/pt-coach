@@ -565,7 +565,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v27';
+const APP_VERSION = 'v28';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -660,12 +660,22 @@ function renderHome(){
 
     let sub = '';
     if(r.type === 'breathing'){
-      const mins = Math.max(1, Math.round((Number(r.duration) || 0) / 60));
+      const hasVariableDuration = isVariableBreathValue(r.duration);
+      const mins = hasVariableDuration
+        ? null
+        : Math.max(1, Math.round((Number(r.duration) || 0) / 60));
       const hasVariableTiming = [r.inhale, r.hold_after_inhale, r.exhale, r.hold_after_exhale]
-        .some(v => String(v).trim() === '?');
-      sub = hasVariableTiming
-        ? `Breathing · ${mins} min · variable timing`
-        : `Breathing · ${mins} min · ${Number(r.inhale) || 0}s in / ${Number(r.exhale) || 0}s out`;
+        .some(v => isVariableBreathValue(v));
+
+      if(hasVariableDuration && hasVariableTiming){
+        sub = 'Breathing · variable duration · variable timing';
+      }else if(hasVariableDuration){
+        sub = `Breathing · variable duration · ${Number(r.inhale) || 0}s in / ${Number(r.exhale) || 0}s out`;
+      }else if(hasVariableTiming){
+        sub = `Breathing · ${mins} min · variable timing`;
+      }else{
+        sub = `Breathing · ${mins} min · ${Number(r.inhale) || 0}s in / ${Number(r.exhale) || 0}s out`;
+      }
     }else{
       const exercises = Array.isArray(r.exercises) ? r.exercises : [];
       sub = `${exercises.length} exercise${exercises.length===1?'':'s'}`;
@@ -972,7 +982,7 @@ function defaultVariableBreathValue(routine, key){
   }
   if(key === 'inhale' || key === 'exhale') return 4;
   if(key === 'hold_after_inhale' || key === 'hold_after_exhale') return 4;
-  if(key === 'duration') return 300;
+  if(key === 'duration') return 5;
   return '';
 }
 
@@ -1006,7 +1016,9 @@ function startBreathing(routineIdx){
 
     const lab = document.createElement('label');
     lab.htmlFor = 'breathInput_' + key;
-    lab.textContent = label + ' (seconds)';
+    lab.textContent = key === 'duration'
+      ? label + ' (minutes)'
+      : label + ' (seconds)';
 
     const input = document.createElement('input');
     input.type = 'number';
@@ -1014,11 +1026,12 @@ function startBreathing(routineIdx){
     input.inputMode = 'numeric';
     input.step = '1';
     const isHoldField = key === 'hold_after_inhale' || key === 'hold_after_exhale';
-    input.min = key === 'duration' ? '30' : (isHoldField ? '0' : '1');
-    input.max = key === 'duration' ? '3600' : '30';
+    input.min = key === 'duration' ? '1' : (isHoldField ? '0' : '1');
+    input.max = key === 'duration' ? '60' : '30';
 
     const savedValues = getSavedVariableBreathValues(routine);
-    const savedValue = Number(savedValues[key]);
+    const savedKey = key === 'duration' ? 'duration_minutes' : key;
+    const savedValue = Number(savedValues[savedKey]);
     const minValue = Number(input.min);
     const maxValue = Number(input.max);
     input.value = Number.isFinite(savedValue) && savedValue >= minValue && savedValue <= maxValue
@@ -1047,7 +1060,7 @@ function confirmBreathSetup(){
     hold_after_inhale:[0,30],
     exhale:[1,30],
     hold_after_exhale:[0,30],
-    duration:[30,3600]
+    duration:[1,60]
   };
 
   for(const key of Object.keys(limits)){
@@ -1058,13 +1071,13 @@ function confirmBreathSetup(){
     if(!Number.isFinite(value) || value < min || value > max){
       alert(
         key === 'duration'
-          ? 'Please enter a duration between 30 and 3600 seconds.'
+          ? 'Please enter a duration between 1 and 60 minutes.'
           : `Please enter a value between ${min} and ${max} seconds.`
       );
       if(input) input.focus();
       return;
     }
-    pendingBreathRoutine[key] = value;
+    pendingBreathRoutine[key] = key === 'duration' ? value * 60 : value;
   }
 
   const idx = pendingBreathRoutineIndex;
@@ -1074,7 +1087,11 @@ function confirmBreathSetup(){
   const valuesToSave = {};
   ['inhale','hold_after_inhale','exhale','hold_after_exhale','duration'].forEach(key=>{
     if(originalRoutine && isVariableBreathValue(originalRoutine[key])){
-      valuesToSave[key] = resolved[key];
+      if(key === 'duration'){
+        valuesToSave.duration_minutes = Math.round(resolved.duration / 60);
+      }else{
+        valuesToSave[key] = resolved[key];
+      }
     }
   });
   saveVariableBreathValues(originalRoutine, valuesToSave);

@@ -746,5 +746,5 @@ routines:
     hold_after_inhale: "?"
     exhale: "?"
     hold_after_exhale: "?"
-    duration: 300
+    duration: "?"
     music: ambient
