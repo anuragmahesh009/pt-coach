@@ -452,17 +452,8 @@
       <h2>Which routine<br/>are we doing?</h2>
     </div>
     <div class="rate-control" style="padding:0 4px; margin-bottom:14px;">
-      <label for="rateSlider">Speed: <span id="rateLabel">0.70</span></label>
-      <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.70" oninput="onRateSliderChange(this.value)">
-    </div>
-    <div class="voice-control" style="padding:0 4px; margin-bottom:14px;">
-      <label for="voiceSelect">Voice</label>
-      <div class="voice-row">
-        <select id="voiceSelect" class="voice-select" onchange="onVoiceChange(this.value)">
-          <option value="">Auto — best available</option>
-        </select>
-        <button class="voice-preview" type="button" onclick="previewVoice()">Preview</button>
-      </div>
+      <label for="rateSlider">Speed: <span id="rateLabel">0.85</span></label>
+      <input type="range" id="rateSlider" min="0.5" max="1.1" step="0.05" value="0.85" oninput="onRateSliderChange(this.value)">
     </div>
     <div class="routine-list" id="routineList"></div>
   </div>
@@ -574,7 +565,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v26';
+const APP_VERSION = 'v27';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -670,7 +661,11 @@ function renderHome(){
     let sub = '';
     if(r.type === 'breathing'){
       const mins = Math.max(1, Math.round((Number(r.duration) || 0) / 60));
-      sub = `Breathing · ${mins} min · ${Number(r.inhale) || 0}s in / ${Number(r.exhale) || 0}s out`;
+      const hasVariableTiming = [r.inhale, r.hold_after_inhale, r.exhale, r.hold_after_exhale]
+        .some(v => String(v).trim() === '?');
+      sub = hasVariableTiming
+        ? `Breathing · ${mins} min · variable timing`
+        : `Breathing · ${mins} min · ${Number(r.inhale) || 0}s in / ${Number(r.exhale) || 0}s out`;
     }else{
       const exercises = Array.isArray(r.exercises) ? r.exercises : [];
       sub = `${exercises.length} exercise${exercises.length===1?'':'s'}`;
@@ -910,6 +905,9 @@ let guidedBreathAudio = null;
 let guidedBreathOutroBuffer = null;
 let guidedBreathBufferSource = null;
 let breathingFlowToken = 0;
+let breathKeepAliveOscillator = null;
+let breathKeepAliveGain = null;
+let lastBreathAudioHealthCheck = 0;
 
 function normalizeBreathingRoutine(routine){
   return {
@@ -939,6 +937,43 @@ let pendingBreathRoutine = null;
 
 function isVariableBreathValue(v){
   return String(v).trim() === '?';
+}
+
+function variableBreathStorageKey(routine){
+  const name = String((routine && routine.name) || 'breathing')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+  return `ptCoachBreathVars:${name}`;
+}
+
+function getSavedVariableBreathValues(routine){
+  try{
+    const raw = localStorage.getItem(variableBreathStorageKey(routine));
+    if(!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  }catch(e){
+    return {};
+  }
+}
+
+function saveVariableBreathValues(routine, values){
+  try{
+    localStorage.setItem(variableBreathStorageKey(routine), JSON.stringify(values));
+  }catch(e){}
+}
+
+function defaultVariableBreathValue(routine, key){
+  if(routine && routine.name === 'Variable Calming Breath'){
+    if(key === 'inhale') return 4;
+    if(key === 'exhale') return 6;
+  }
+  if(key === 'inhale' || key === 'exhale') return 4;
+  if(key === 'hold_after_inhale' || key === 'hold_after_exhale') return 4;
+  if(key === 'duration') return 300;
+  return '';
 }
 
 function startBreathing(routineIdx){
@@ -978,12 +1013,17 @@ function startBreathing(routineIdx){
     input.id = 'breathInput_' + key;
     input.inputMode = 'numeric';
     input.step = '1';
-    input.min = key === 'duration' ? '30' : '1';
+    const isHoldField = key === 'hold_after_inhale' || key === 'hold_after_exhale';
+    input.min = key === 'duration' ? '30' : (isHoldField ? '0' : '1');
     input.max = key === 'duration' ? '3600' : '30';
 
-    // Friendly starting values for Variable Calming Breath.
-    if(key === 'inhale') input.value = '4';
-    if(key === 'exhale') input.value = '6';
+    const savedValues = getSavedVariableBreathValues(routine);
+    const savedValue = Number(savedValues[key]);
+    const minValue = Number(input.min);
+    const maxValue = Number(input.max);
+    input.value = Number.isFinite(savedValue) && savedValue >= minValue && savedValue <= maxValue
+      ? String(savedValue)
+      : String(defaultVariableBreathValue(routine, key));
 
     wrap.appendChild(lab);
     wrap.appendChild(input);
@@ -1029,6 +1069,16 @@ function confirmBreathSetup(){
 
   const idx = pendingBreathRoutineIndex;
   const resolved = pendingBreathRoutine;
+  const originalRoutine = DATA.routines[idx];
+
+  const valuesToSave = {};
+  ['inhale','hold_after_inhale','exhale','hold_after_exhale','duration'].forEach(key=>{
+    if(originalRoutine && isVariableBreathValue(originalRoutine[key])){
+      valuesToSave[key] = resolved[key];
+    }
+  });
+  saveVariableBreathValues(originalRoutine, valuesToSave);
+
   document.getElementById('breathSetupModal').classList.remove('active');
   pendingBreathRoutineIndex = null;
   pendingBreathRoutine = null;
@@ -1066,9 +1116,11 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   goTo('breathing');
   acquireWakeLock();
 
-  // Prime Web Audio during the user's tap so iOS will allow the
-  // ambient sound to begin automatically after the intro finishes.
+  // Prime Web Audio during the user's tap. A near-silent keep-alive node
+  // prevents iOS Safari from deciding the Web Audio context is idle while
+  // the spoken intro is playing.
   ensureBreathAudio();
+  startBreathAudioKeepAlive();
 
   // iOS can block a NEW HTMLAudioElement from autoplaying several minutes
   // later at the end of the session. Preload/decode the outro into this
@@ -1086,7 +1138,11 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   });
 }
 
-function beginBreathingEngine(cfg, phases){
+async function beginBreathingEngine(cfg, phases){
+  // Do not begin the timer until Web Audio has actually resumed. This removes
+  // the intermittent iPhone race where the visuals started but swell/beeps did not.
+  const audioReady = await ensureBreathAudioRunning();
+
   const now = performance.now();
   breathingSession = {
     ...cfg,
@@ -1106,13 +1162,22 @@ function beginBreathingEngine(cfg, phases){
   document.getElementById('breathCount').textContent = '1';
   document.getElementById('breathPauseBtn').textContent = 'Pause';
 
-  ensureBreathAudio();
-  if(breathingSoundOn){
+  if(breathingSoundOn && audioReady){
+    // Always rebuild the ambient graph at the intro->breathing transition.
+    // This avoids stale nodes making the app think sound exists when it does not.
+    stopAmbientSound();
     startAmbientSound();
     syncAmbientToBreath(phases[0].key, 0);
+    playPhaseCue(phases[0].key);
   }
-  playPhaseCue(phases[0].key);
+
+  stopBreathAudioKeepAlive();
   runBreathingFrame();
+
+  // If iOS still delayed Web Audio, keep trying briefly while the routine runs.
+  if(breathingSoundOn && !audioReady){
+    recoverBreathAudioDuringSession();
+  }
 }
 
 function playGuidedBreathAudio(src, onEnded, onError){
@@ -1282,6 +1347,13 @@ function runBreathingFrame(now = performance.now()){
   const phaseProgress = Math.min(1, Math.max(0, phaseElapsed / phase.seconds));
   syncAmbientToBreath(phase.key, phaseProgress);
 
+  if(breathingSoundOn && now - lastBreathAudioHealthCheck > 2000){
+    lastBreathAudioHealthCheck = now;
+    if(!breathAudioContext || breathAudioContext.state !== 'running' || !ambientMasterGain){
+      recoverBreathAudioDuringSession();
+    }
+  }
+
   document.getElementById('breathTimer').textContent = `${formatBreathTime(remainingTotal)} remaining`;
   document.getElementById('breathPhase').textContent = phase.label;
   document.getElementById('breathCount').textContent = Math.min(phase.seconds, Math.floor(phaseElapsed) + 1);
@@ -1368,6 +1440,7 @@ function stopBreathingEngine(){
     breathAnimationFrame = null;
   }
   stopAmbientSound();
+  stopBreathAudioKeepAlive();
   stopGuidedBreathAudio();
   releaseWakeLock();
   breathingSession = null;
@@ -1378,6 +1451,8 @@ function ensureBreathAudio(){
     if(breathAudioContext && breathAudioContext.state === 'closed'){
       breathAudioContext = null;
       ambientNodes = [];
+      ambientMasterGain = null;
+      stopBreathAudioKeepAlive();
     }
     if(!breathAudioContext){
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -1391,6 +1466,84 @@ function ensureBreathAudio(){
     }
   }catch(e){
     console.warn('Breathing audio unavailable:', e);
+  }
+}
+
+
+function waitMs(ms){
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function ensureBreathAudioRunning(){
+  ensureBreathAudio();
+  if(!breathAudioContext) return false;
+
+  for(let attempt = 0; attempt < 5; attempt++){
+    if(breathAudioContext.state === 'running') return true;
+
+    try{
+      const p = breathAudioContext.resume();
+      if(p && typeof p.then === 'function') await p;
+    }catch(e){}
+
+    await waitMs(100 + attempt * 60);
+    if(breathAudioContext && breathAudioContext.state === 'running') return true;
+  }
+  return false;
+}
+
+function startBreathAudioKeepAlive(){
+  ensureBreathAudio();
+  if(!breathAudioContext || breathKeepAliveOscillator) return;
+
+  try{
+    const osc = breathAudioContext.createOscillator();
+    const gain = breathAudioContext.createGain();
+
+    // Essentially inaudible, but enough to keep the audio graph active.
+    osc.type = 'sine';
+    osc.frequency.value = 440;
+    gain.gain.value = 0.000001;
+
+    osc.connect(gain);
+    gain.connect(breathAudioContext.destination);
+    osc.start();
+
+    breathKeepAliveOscillator = osc;
+    breathKeepAliveGain = gain;
+  }catch(e){}
+}
+
+function stopBreathAudioKeepAlive(){
+  if(breathKeepAliveOscillator){
+    try{ breathKeepAliveOscillator.stop(); }catch(e){}
+    try{ breathKeepAliveOscillator.disconnect(); }catch(e){}
+  }
+  if(breathKeepAliveGain){
+    try{ breathKeepAliveGain.disconnect(); }catch(e){}
+  }
+  breathKeepAliveOscillator = null;
+  breathKeepAliveGain = null;
+}
+
+async function recoverBreathAudioDuringSession(){
+  if(!breathingSoundOn || !breathingSession || breathingSession.paused) return;
+
+  const running = await ensureBreathAudioRunning();
+  if(!running || !breathingSession || breathingSession.paused) return;
+
+  if(!ambientNodes.length || !ambientMasterGain){
+    stopAmbientSound();
+    startAmbientSound();
+  }
+
+  const phase = breathingSession.phases[breathingSession.phaseIndex];
+  if(phase && ambientMasterGain){
+    const progress = Math.min(
+      1,
+      Math.max(0, (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds)
+    );
+    syncAmbientToBreath(phase.key, progress);
   }
 }
 
@@ -1589,104 +1742,44 @@ function unlockSpeech(){
     window.speechSynthesis.speak(u);
     speechUnlocked = true;
   }catch(e){}
-  // Voice lists load asynchronously on first use in some browsers.
+
   if(window.speechSynthesis && typeof window.speechSynthesis.addEventListener === 'function'){
     window.speechSynthesis.addEventListener('voiceschanged', ()=>{
       cachedVoice = null;
-      populateVoiceSelector();
     });
   }
-  populateVoiceSelector();
 }
 
-// Preference order: smooth, natural-sounding female voices first.
-// "Samantha" (iOS/macOS) and "Google US English" (some Android/Chrome) are
-// generally the smoothest defaults available without paid neural TTS.
-const PREFERRED_VOICE_NAMES = [
-  'Samantha',           // iOS / macOS default female voice — smoothest built-in option
-  'Siri Female',
-  'Microsoft Aria Online (Natural) - English (United States)',
-  'Microsoft Jenny Online (Natural) - English (United States)',
-  'Google US English',
-  'Karen',
-  'Moira',
-  'Tessa',
-  'Victoria'
-];
-
-let selectedVoiceName = '';
-try{ selectedVoiceName = localStorage.getItem('ptCoachVoice') || ''; }catch(e){}
-
-function getEnglishVoices(){
-  if(!('speechSynthesis' in window)) return [];
-  return (window.speechSynthesis.getVoices() || [])
-    .filter(v => /en[-_]/i.test(v.lang || ''))
-    .sort((a,b) => a.name.localeCompare(b.name));
-}
-
-function populateVoiceSelector(){
-  const select = document.getElementById('voiceSelect');
-  if(!select) return;
-  const voices = getEnglishVoices();
-  const previous = selectedVoiceName;
-  select.innerHTML = '<option value="">Auto — best available</option>';
-  voices.forEach(v => {
-    const opt = document.createElement('option');
-    opt.value = v.name;
-    opt.textContent = `${v.name} (${v.lang})${v.localService ? '' : ' — online'}`;
-    select.appendChild(opt);
-  });
-  if(previous && voices.some(v => v.name === previous)){
-    select.value = previous;
-  }else{
-    // Keep the saved preference. iOS can report an empty/partial voice list
-    // during startup and expose the full list a moment later.
-    select.value = '';
-  }
-}
-
-function onVoiceChange(name){
-  selectedVoiceName = name || '';
-  cachedVoice = null;
-  try{
-    if(selectedVoiceName) localStorage.setItem('ptCoachVoice', selectedVoiceName);
-    else localStorage.removeItem('ptCoachVoice');
-  }catch(e){}
-}
-
-function previewVoice(){
-  unlockSpeech();
-  speak('Hi. This is the PT Coach voice. Choose the voice that sounds most natural to you.');
-}
+// Fixed exercise voice: Samantha (en-US).
+// On iPhone this is the intended voice. If Safari has not exposed Samantha
+// yet, the app waits for voiceschanged and falls back to another en-US voice
+// only so speech never disappears entirely.
+const FIXED_VOICE_NAME = 'Samantha';
 
 function pickVoice(){
   if(cachedVoice) return cachedVoice;
   if(!('speechSynthesis' in window)) return null;
+
   const voices = window.speechSynthesis.getVoices() || [];
   if(voices.length === 0) return null;
 
-  // 1) If the user chose a voice explicitly, always use it when available.
-  if(selectedVoiceName){
-    const selected = voices.find(v => v.name === selectedVoiceName);
-    if(selected){ cachedVoice = selected; return cachedVoice; }
+  const samantha = voices.find(v =>
+    v.name === FIXED_VOICE_NAME && /^en[-_]US$/i.test(v.lang || '')
+  ) || voices.find(v => v.name === FIXED_VOICE_NAME);
+
+  if(samantha){
+    cachedVoice = samantha;
+    return cachedVoice;
   }
 
-  // 2) Otherwise use the app's preferred natural-sounding English voices.
-  for(const name of PREFERRED_VOICE_NAMES){
-    const match = voices.find(v => v.name === name);
-    if(match){ cachedVoice = match; return cachedVoice; }
+  const enUS = voices.find(v => /^en[-_]US$/i.test(v.lang || ''));
+  if(enUS){
+    cachedVoice = enUS;
+    return cachedVoice;
   }
-  // 3) Any voice whose name suggests a female English voice.
-  const femaleHint = voices.find(v =>
-    /en[-_]/i.test(v.lang) &&
-    /female|samantha|victoria|karen|moira|tessa|aria|jenny|zira|susan|allison|ava/i.test(v.name)
-  );
-  if(femaleHint){ cachedVoice = femaleHint; return cachedVoice; }
-  // 4) Fall back to any English voice.
-  const anyEnglish = voices.find(v => /en[-_]/i.test(v.lang));
-  if(anyEnglish){ cachedVoice = anyEnglish; return cachedVoice; }
-  // 5) Last resort: whatever the browser gives us first.
-  cachedVoice = voices[0] || null;
+
+  const anyEnglish = voices.find(v => /^en[-_]/i.test(v.lang || ''));
+  cachedVoice = anyEnglish || voices[0] || null;
   return cachedVoice;
 }
 
@@ -1699,16 +1792,10 @@ function setSpeakingVisual(isSpeaking){
     : 'Ready';
 }
 
-// Speech speed is remembered on this device. If nothing has been saved yet,
-// use the familiar 0.70 default.
-const DEFAULT_SPEECH_RATE = 0.70;
+// Speech speed resets to 0.85 each time the app is opened.
+// The slider can still be adjusted for the current app session.
+const DEFAULT_SPEECH_RATE = 0.85;
 let currentSpeechRate = DEFAULT_SPEECH_RATE;
-try{
-  const savedRate = parseFloat(localStorage.getItem('ptCoachSpeechRate'));
-  if(Number.isFinite(savedRate) && savedRate >= 0.5 && savedRate <= 1.1){
-    currentSpeechRate = savedRate;
-  }
-}catch(e){}
 
 function syncSpeechRateUI(){
   const slider = document.getElementById('rateSlider');
@@ -1722,7 +1809,6 @@ function onRateSliderChange(value){
   if(!Number.isFinite(parsed)) return;
   currentSpeechRate = parsed;
   syncSpeechRateUI();
-  try{ localStorage.setItem('ptCoachSpeechRate', currentSpeechRate.toFixed(2)); }catch(e){}
 }
 
 function speak(text, onEnd){
@@ -1853,10 +1939,6 @@ async function initApp(){
 
     renderHome();
     syncSpeechRateUI();
-    populateVoiceSelector();
-    // iOS may expose the voice list a moment after page load. Try again shortly.
-    setTimeout(populateVoiceSelector, 250);
-    setTimeout(populateVoiceSelector, 1000);
   }catch(e){
     console.error('PT Coach failed to initialize:', e);
     document.getElementById('app').innerHTML =

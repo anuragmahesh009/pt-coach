@@ -739,3 +739,12 @@ routines:
     hold_after_exhale: 0
     duration: 300
     music: ambient
+
+  - name: Variable Breath
+    type: breathing
+    inhale: "?"
+    hold_after_inhale: "?"
+    exhale: "?"
+    hold_after_exhale: "?"
+    duration: 300
+    music: ambient
