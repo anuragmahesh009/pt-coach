@@ -565,7 +565,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v28';
+const APP_VERSION = 'v29';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -1763,41 +1763,81 @@ function unlockSpeech(){
   if(window.speechSynthesis && typeof window.speechSynthesis.addEventListener === 'function'){
     window.speechSynthesis.addEventListener('voiceschanged', ()=>{
       cachedVoice = null;
+      findSamanthaVoice();
     });
   }
+
+  // Prime the list now; on iOS it may populate asynchronously afterward.
+  try{
+    window.speechSynthesis.getVoices();
+    findSamanthaVoice();
+  }catch(e){}
 }
 
-// Fixed exercise voice: Samantha (en-US).
-// On iPhone this is the intended voice. If Safari has not exposed Samantha
-// yet, the app waits for voiceschanged and falls back to another en-US voice
-// only so speech never disappears entirely.
+// Fixed exercise voice: Samantha (en-US) only.
+// Never substitute another system voice. Safari/iOS can expose its voice
+// list a little late, so speech waits briefly for Samantha to appear.
 const FIXED_VOICE_NAME = 'Samantha';
+let speechRequestToken = 0;
 
-function pickVoice(){
-  if(cachedVoice) return cachedVoice;
+function findSamanthaVoice(){
   if(!('speechSynthesis' in window)) return null;
 
   const voices = window.speechSynthesis.getVoices() || [];
   if(voices.length === 0) return null;
 
+  // Accept Samantha variants such as an enhanced/premium Samantha,
+  // but only if the voice is US English.
   const samantha = voices.find(v =>
-    v.name === FIXED_VOICE_NAME && /^en[-_]US$/i.test(v.lang || '')
-  ) || voices.find(v => v.name === FIXED_VOICE_NAME);
+    /^Samantha(?:\b|\s|\()/i.test(v.name || '') &&
+    /^en[-_]US$/i.test(v.lang || '')
+  ) || voices.find(v =>
+    /^Samantha(?:\b|\s|\()/i.test(v.name || '')
+  );
 
   if(samantha){
     cachedVoice = samantha;
-    return cachedVoice;
+    return samantha;
   }
 
-  const enUS = voices.find(v => /^en[-_]US$/i.test(v.lang || ''));
-  if(enUS){
-    cachedVoice = enUS;
+  return null;
+}
+
+function pickVoice(){
+  if(cachedVoice &&
+     /^Samantha(?:\b|\s|\()/i.test(cachedVoice.name || '')){
     return cachedVoice;
   }
+  cachedVoice = null;
+  return findSamanthaVoice();
+}
 
-  const anyEnglish = voices.find(v => /^en[-_]/i.test(v.lang || ''));
-  cachedVoice = anyEnglish || voices[0] || null;
-  return cachedVoice;
+function waitForSamanthaVoice(token, maxWaitMs=5000){
+  return new Promise(resolve=>{
+    const started = performance.now();
+
+    const check = ()=>{
+      if(token !== speechRequestToken){
+        resolve(null);
+        return;
+      }
+
+      const voice = pickVoice();
+      if(voice){
+        resolve(voice);
+        return;
+      }
+
+      if(performance.now() - started >= maxWaitMs){
+        resolve(null);
+        return;
+      }
+
+      setTimeout(check, 100);
+    };
+
+    check();
+  });
 }
 
 function setSpeakingVisual(isSpeaking){
@@ -1828,26 +1868,54 @@ function onRateSliderChange(value){
   syncSpeechRateUI();
 }
 
-function speak(text, onEnd){
+async function speak(text, onEnd){
   if(!('speechSynthesis' in window)){
     if(onEnd) onEnd();
     return;
   }
+
+  const token = ++speechRequestToken;
   window.speechSynthesis.cancel();
+
+  setSpeakingVisual(true);
+  const status = document.getElementById('micStatus');
+  if(status) status.textContent = 'Getting Samantha ready…';
+
+  // Calling getVoices() helps trigger Safari's asynchronous voice loading.
+  try{ window.speechSynthesis.getVoices(); }catch(e){}
+
+  const voice = await waitForSamanthaVoice(token);
+
+  if(token !== speechRequestToken) return;
+
+  if(!voice){
+    // Deliberately do NOT speak with a substitute/default voice.
+    setSpeakingVisual(false);
+    if(status) status.textContent = 'Samantha unavailable';
+    if(onEnd) onEnd();
+    return;
+  }
+
   const utter = new SpeechSynthesisUtterance(text);
-  const voice = pickVoice();
-  if(voice) utter.voice = voice;
+  utter.voice = voice;
+  utter.lang = 'en-US';
   utter.rate = currentSpeechRate;
   utter.pitch = 1.0;
-  setSpeakingVisual(true);
+
+  if(status) status.textContent = 'Speaking…';
+
   utter.onend = ()=>{
+    if(token !== speechRequestToken) return;
     setSpeakingVisual(false);
     if(onEnd) onEnd();
   };
+
   utter.onerror = ()=>{
+    if(token !== speechRequestToken) return;
     setSpeakingVisual(false);
     if(onEnd) onEnd();
   };
+
   window.speechSynthesis.speak(utter);
 }
 
