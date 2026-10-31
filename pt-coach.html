@@ -565,7 +565,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v31';
+const APP_VERSION = 'v30';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -908,20 +908,10 @@ let ambientNodes = [];
 let ambientMasterGain = null;
 let breathingSoundOn = true;
 
-// v31 breathing audio: browser-managed media playback only.
-// This avoids iPhone/Safari Web Audio suspension/resume flakiness.
-const BREATH_AMBIENT_AUDIO = 'breath-ocean-loop.mp3';
-const BREATH_BEEP_INHALE_AUDIO = 'breath-beep-inhale.mp3';
-const BREATH_BEEP_EXHALE_AUDIO = 'breath-beep-exhale.mp3';
-const BREATH_BEEP_HOLD_AUDIO = 'breath-beep-hold.mp3';
-
-let breathMedia = null;
-
-
 // Shared natural-voice guidance for all breathing routines.
 const BREATH_INTRO_AUDIO = 'breath-intro.mp3';
 const BREATH_OUTRO_AUDIO = 'breath-outro.mp3';
-let guidedBreathAudio = null;
+let guidedBreathIntroBuffer = null;
 let guidedBreathOutroBuffer = null;
 let guidedBreathBufferSource = null;
 let breathingFlowToken = 0;
@@ -1143,23 +1133,33 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   goTo('breathing');
   acquireWakeLock();
 
-  // Prime Web Audio during the user's tap. A near-silent keep-alive node
-  // prevents iOS Safari from deciding the Web Audio context is idle while
-  // the spoken intro is playing.
+  // Everything in a breathing routine now uses the SAME Web Audio context:
+  // intro voice, Ocean Swell, phase beeps, and outro voice. This avoids the
+  // flaky iPhone handoff between HTMLAudioElement and Web Audio.
   ensureBreathAudio();
   startBreathAudioKeepAlive();
 
-  // iOS can block a NEW HTMLAudioElement from autoplaying several minutes
-  // later at the end of the session. Preload/decode the outro into this
-  // already-unlocked AudioContext so it can play reliably when the routine ends.
-  preloadGuidedBreathOutro();
-
   const token = ++breathingFlowToken;
-  playGuidedBreathAudio(BREATH_INTRO_AUDIO, ()=>{
+
+  preloadGuidedBreathBuffers().then(async ()=>{
     if(token !== breathingFlowToken) return;
-    beginBreathingEngine(cfg, phases);
-  }, ()=>{
-    // If the clip cannot be loaded, continue with the breathing routine.
+
+    const audioReady = await ensureBreathAudioRunning();
+    if(token !== breathingFlowToken) return;
+
+    if(audioReady && guidedBreathIntroBuffer){
+      playGuidedBreathBuffer(guidedBreathIntroBuffer, ()=>{
+        if(token !== breathingFlowToken) return;
+        beginBreathingEngine(cfg, phases);
+      }, ()=>{
+        if(token !== breathingFlowToken) return;
+        beginBreathingEngine(cfg, phases);
+      });
+    }else{
+      // Never block the routine if the voice asset cannot be decoded.
+      beginBreathingEngine(cfg, phases);
+    }
+  }).catch(()=>{
     if(token !== breathingFlowToken) return;
     beginBreathingEngine(cfg, phases);
   });
@@ -1207,73 +1207,56 @@ async function beginBreathingEngine(cfg, phases){
   }
 }
 
-function playGuidedBreathAudio(src, onEnded, onError){
-  stopGuidedBreathAudio();
+async function loadGuidedBreathBuffer(src){
+  ensureBreathAudio();
+  if(!breathAudioContext) return null;
+
+  const response = await fetch(src, {cache:'force-cache'});
+  if(!response.ok) throw new Error(`Audio HTTP ${response.status}: ${src}`);
+  const bytes = await response.arrayBuffer();
+  return await breathAudioContext.decodeAudioData(bytes.slice(0));
+}
+
+async function preloadGuidedBreathBuffers(){
+  ensureBreathAudio();
+  if(!breathAudioContext) return;
 
   try{
-    const audio = new Audio(src);
-    guidedBreathAudio = audio;
-    audio.preload = 'auto';
+    const jobs = [];
 
-    const cleanup = ()=>{
-      if(guidedBreathAudio === audio) guidedBreathAudio = null;
-    };
-
-    audio.onended = ()=>{
-      cleanup();
-      if(typeof onEnded === 'function') onEnded();
-    };
-
-    audio.onerror = ()=>{
-      cleanup();
-      if(typeof onError === 'function') onError();
-    };
-
-    const p = audio.play();
-    if(p && typeof p.catch === 'function'){
-      p.catch(()=>{
-        cleanup();
-        if(typeof onError === 'function') onError();
-      });
+    if(!guidedBreathIntroBuffer){
+      jobs.push(
+        loadGuidedBreathBuffer(BREATH_INTRO_AUDIO)
+          .then(buffer => { guidedBreathIntroBuffer = buffer; })
+      );
     }
+
+    if(!guidedBreathOutroBuffer){
+      jobs.push(
+        loadGuidedBreathBuffer(BREATH_OUTRO_AUDIO)
+          .then(buffer => { guidedBreathOutroBuffer = buffer; })
+      );
+    }
+
+    if(jobs.length) await Promise.all(jobs);
   }catch(e){
+    console.warn('Could not preload guided breathing audio:', e);
+  }
+}
+
+function playGuidedBreathBuffer(buffer, onEnded, onError){
+  ensureBreathAudio();
+  if(!breathAudioContext || !buffer){
     if(typeof onError === 'function') onError();
-  }
-}
-
-async function preloadGuidedBreathOutro(){
-  ensureBreathAudio();
-  if(!breathAudioContext || guidedBreathOutroBuffer) return;
-
-  try{
-    const response = await fetch(BREATH_OUTRO_AUDIO, {cache:'force-cache'});
-    if(!response.ok) throw new Error(`Outro HTTP ${response.status}`);
-    const bytes = await response.arrayBuffer();
-    guidedBreathOutroBuffer = await breathAudioContext.decodeAudioData(bytes.slice(0));
-  }catch(e){
-    console.warn('Could not preload breathing outro:', e);
-    guidedBreathOutroBuffer = null;
-  }
-}
-
-function playGuidedBreathOutro(onEnded, onError){
-  ensureBreathAudio();
-  if(!breathAudioContext || !guidedBreathOutroBuffer){
-    // Safe fallback for non-iOS browsers or if decoding failed.
-    playGuidedBreathAudio(BREATH_OUTRO_AUDIO, onEnded, onError);
     return;
   }
 
   try{
-    if(guidedBreathBufferSource){
-      try{ guidedBreathBufferSource.stop(); }catch(e){}
-      try{ guidedBreathBufferSource.disconnect(); }catch(e){}
-      guidedBreathBufferSource = null;
-    }
+    stopGuidedBreathAudio();
 
     const source = breathAudioContext.createBufferSource();
     const gain = breathAudioContext.createGain();
-    source.buffer = guidedBreathOutroBuffer;
+    source.buffer = buffer;
     gain.gain.value = 1.0;
     source.connect(gain);
     gain.connect(breathAudioContext.destination);
@@ -1286,42 +1269,28 @@ function playGuidedBreathOutro(onEnded, onError){
       if(typeof onEnded === 'function') onEnded();
     };
 
-    const startSource = ()=>{
-      try{
-        source.start();
-      }catch(e){
-        if(typeof onError === 'function') onError();
-      }
-    };
-
-    if(breathAudioContext.state === 'suspended'){
-      const p = breathAudioContext.resume();
-      if(p && typeof p.then === 'function'){
-        p.then(startSource).catch(()=>{
-          if(typeof onError === 'function') onError();
-        });
-      }else{
-        startSource();
-      }
-    }else{
-      startSource();
-    }
+    source.start();
   }catch(e){
-    console.warn('Could not play breathing outro:', e);
+    console.warn('Could not play guided breathing audio:', e);
     if(typeof onError === 'function') onError();
   }
 }
 
-function stopGuidedBreathAudio(){
-  if(guidedBreathAudio){
-    try{
-      guidedBreathAudio.pause();
-      guidedBreathAudio.currentTime = 0;
-    }catch(e){}
-    guidedBreathAudio = null;
-  }
+function playGuidedBreathOutro(onEnded, onError){
+  ensureBreathAudioRunning().then(running=>{
+    if(!running || !guidedBreathOutroBuffer){
+      if(typeof onError === 'function') onError();
+      return;
+    }
+    playGuidedBreathBuffer(guidedBreathOutroBuffer, onEnded, onError);
+  }).catch(()=>{
+    if(typeof onError === 'function') onError();
+  });
+}
 
+function stopGuidedBreathAudio(){
   if(guidedBreathBufferSource){
+    try{ guidedBreathBufferSource.onended = null; }catch(e){}
     try{ guidedBreathBufferSource.stop(); }catch(e){}
     try{ guidedBreathBufferSource.disconnect(); }catch(e){}
     guidedBreathBufferSource = null;
@@ -1374,6 +1343,12 @@ function runBreathingFrame(now = performance.now()){
   const phaseProgress = Math.min(1, Math.max(0, phaseElapsed / phase.seconds));
   syncAmbientToBreath(phase.key, phaseProgress);
 
+  if(breathingSoundOn && now - lastBreathAudioHealthCheck > 2000){
+    lastBreathAudioHealthCheck = now;
+    if(!breathAudioContext || breathAudioContext.state !== 'running' || !ambientMasterGain){
+      recoverBreathAudioDuringSession();
+    }
+  }
 
   document.getElementById('breathTimer').textContent = `${formatBreathTime(remainingTotal)} remaining`;
   document.getElementById('breathPhase').textContent = phase.label;
@@ -1748,331 +1723,6 @@ function updateBreathingSoundButton(){
   if(!btn) return;
   btn.textContent = breathingSoundOn ? '♫ Ambient On' : '♫ Ambient Off';
   btn.classList.toggle('active', breathingSoundOn);
-}
-
-
-
-/* ===================== BREATHING AUDIO v31 ===================== */
-/*
-  iPhone reliability strategy:
-  - No AudioContext / Web Audio is used for breathing playback.
-  - Intro, Ocean Swell, cue tones, and outro are ordinary Audio elements.
-  - All elements are primed from the user's Start/Confirm tap.
-  - Ocean volume is modulated in sync with inhale/exhale.
-*/
-
-function createBreathMedia(){
-  if(breathMedia) return breathMedia;
-
-  const make = (src, loop=false)=>{
-    const a = new Audio(src);
-    a.preload = 'auto';
-    a.loop = loop;
-    a.playsInline = true;
-    return a;
-  };
-
-  breathMedia = {
-    intro: make(BREATH_INTRO_AUDIO),
-    ambient: make(BREATH_AMBIENT_AUDIO, true),
-    inhale: make(BREATH_BEEP_INHALE_AUDIO),
-    exhale: make(BREATH_BEEP_EXHALE_AUDIO),
-    hold: make(BREATH_BEEP_HOLD_AUDIO),
-    outro: make(BREATH_OUTRO_AUDIO)
-  };
-
-  breathMedia.intro.volume = 1.0;
-  breathMedia.outro.volume = 1.0;
-  breathMedia.ambient.volume = 0.20;
-  breathMedia.inhale.volume = 0.78;
-  breathMedia.exhale.volume = 0.78;
-  breathMedia.hold.volume = 0.78;
-
-  return breathMedia;
-}
-
-function primeOneBreathMedia(audio){
-  if(!audio) return;
-  try{
-    const oldMuted = audio.muted;
-    const oldVolume = audio.volume;
-    audio.muted = true;
-    audio.volume = 0;
-    audio.currentTime = 0;
-
-    const p = audio.play();
-    if(p && typeof p.then === 'function'){
-      p.then(()=>{
-        try{
-          audio.pause();
-          audio.currentTime = 0;
-          audio.muted = oldMuted;
-          audio.volume = oldVolume;
-        }catch(e){}
-      }).catch(()=>{
-        try{
-          audio.muted = oldMuted;
-          audio.volume = oldVolume;
-        }catch(e){}
-      });
-    }else{
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = oldMuted;
-      audio.volume = oldVolume;
-    }
-  }catch(e){}
-}
-
-function primeBreathMedia(){
-  const m = createBreathMedia();
-
-  // Prime every element while still inside the user's Start/Confirm tap.
-  // Intro itself will be started immediately afterward.
-  primeOneBreathMedia(m.ambient);
-  primeOneBreathMedia(m.inhale);
-  primeOneBreathMedia(m.exhale);
-  primeOneBreathMedia(m.hold);
-  primeOneBreathMedia(m.outro);
-}
-
-function stopOneMedia(audio, reset=true){
-  if(!audio) return;
-  try{
-    audio.pause();
-    if(reset) audio.currentTime = 0;
-  }catch(e){}
-}
-
-function stopGuidedBreathAudio(){
-  const m = createBreathMedia();
-  stopOneMedia(m.intro);
-  stopOneMedia(m.outro);
-}
-
-function playGuidedBreathAudio(src, onEnded, onError){
-  const m = createBreathMedia();
-  const audio = src === BREATH_OUTRO_AUDIO ? m.outro : m.intro;
-
-  stopOneMedia(audio);
-  audio.onended = ()=>{
-    audio.onended = null;
-    if(typeof onEnded === 'function') onEnded();
-  };
-  audio.onerror = ()=>{
-    audio.onerror = null;
-    if(typeof onError === 'function') onError();
-  };
-
-  try{
-    const p = audio.play();
-    if(p && typeof p.catch === 'function'){
-      p.catch(()=>{
-        if(typeof onError === 'function') onError();
-      });
-    }
-  }catch(e){
-    if(typeof onError === 'function') onError();
-  }
-}
-
-function playGuidedBreathOutro(onEnded, onError){
-  playGuidedBreathAudio(BREATH_OUTRO_AUDIO, onEnded, onError);
-}
-
-function startBreathingResolved(routineIdx, routineOverride=null){
-  const routine = routineOverride || DATA.routines[routineIdx];
-  if(!routine) return;
-
-  if(window.speechSynthesis) window.speechSynthesis.cancel();
-  stopGuidedBreathAudio();
-  stopAmbientSound();
-  releaseWakeLock();
-
-  const cfg = normalizeBreathingRoutine(routine);
-  const phases = buildBreathPhases(cfg);
-  if(phases.length === 0) return;
-
-  breathingSoundOn = cfg.music !== 'none';
-  breathingSession = null;
-
-  document.getElementById('breathTitle').textContent = routine.name || 'Breathing';
-  document.getElementById('breathPattern').textContent = breathingPatternText(cfg);
-  document.getElementById('breathTimer').textContent = 'Getting settled';
-  document.getElementById('breathPhase').textContent = 'GET COMFORTABLE';
-  document.getElementById('breathCount').textContent = '';
-  document.getElementById('breathPauseBtn').textContent = 'Pause';
-  updateBreathingSoundButton();
-
-  const orb = document.getElementById('breathOrb');
-  if(orb) orb.style.transform = 'scale(0.55)';
-
-  goTo('breathing');
-  acquireWakeLock();
-
-  // This is the important iPhone step: prime all future breathing media
-  // while we are still handling the user's direct tap.
-  primeBreathMedia();
-
-  const token = ++breathingFlowToken;
-  playGuidedBreathAudio(BREATH_INTRO_AUDIO, ()=>{
-    if(token !== breathingFlowToken) return;
-    beginBreathingEngine(cfg, phases);
-  }, ()=>{
-    if(token !== breathingFlowToken) return;
-    beginBreathingEngine(cfg, phases);
-  });
-}
-
-function beginBreathingEngine(cfg, phases){
-  const now = performance.now();
-  breathingSession = {
-    ...cfg,
-    phases,
-    phaseIndex:0,
-    phaseStartedAt:now,
-    startedAt:now,
-    paused:false,
-    pausedAt:null,
-    totalPausedMs:0,
-    lastSecond:null,
-    lastPhaseKey:null
-  };
-
-  document.getElementById('breathTimer').textContent = `${formatBreathTime(cfg.duration)} remaining`;
-  document.getElementById('breathPhase').textContent = phases[0].label;
-  document.getElementById('breathCount').textContent = '1';
-  document.getElementById('breathPauseBtn').textContent = 'Pause';
-
-  if(breathingSoundOn){
-    startAmbientSound();
-    syncAmbientToBreath(phases[0].key, 0);
-    playPhaseCue(phases[0].key);
-  }
-
-  runBreathingFrame();
-}
-
-function startAmbientSound(){
-  if(!breathingSoundOn) return;
-  const m = createBreathMedia();
-
-  try{
-    if(m.ambient.paused){
-      const p = m.ambient.play();
-      if(p && typeof p.catch === 'function') p.catch(()=>{});
-    }
-  }catch(e){}
-}
-
-function stopAmbientSound(){
-  if(!breathMedia) return;
-  stopOneMedia(breathMedia.ambient);
-}
-
-function syncAmbientToBreath(phaseKey, phaseProgress){
-  if(!breathingSoundOn || !breathMedia) return;
-
-  const eased = easeInOutSine(Math.min(1, Math.max(0, phaseProgress || 0)));
-
-  // Same relative behavior as the previous Ocean Swell:
-  // build on inhale, soften on exhale, and stay very quiet on holds.
-  const quietLevel = 0.20;
-  const fullLevel = 0.52;
-  const holdLevel = quietLevel * 0.25;
-
-  let target = quietLevel;
-  if(phaseKey === 'inhale'){
-    target = quietLevel + (fullLevel - quietLevel) * eased;
-  }else if(phaseKey === 'holdIn' || phaseKey === 'holdOut'){
-    target = holdLevel;
-  }else if(phaseKey === 'exhale'){
-    target = fullLevel - (fullLevel - quietLevel) * eased;
-  }
-
-  try{
-    breathMedia.ambient.volume = Math.min(1, Math.max(0, target));
-  }catch(e){}
-}
-
-function playPhaseCue(phaseKey){
-  if(!breathingSoundOn) return;
-  const m = createBreathMedia();
-
-  const audio =
-    phaseKey === 'inhale' ? m.inhale :
-    phaseKey === 'exhale' ? m.exhale :
-    m.hold;
-
-  try{
-    audio.pause();
-    audio.currentTime = 0;
-    const p = audio.play();
-    if(p && typeof p.catch === 'function') p.catch(()=>{});
-  }catch(e){}
-}
-
-function suspendBreathAudio(){
-  if(!breathMedia) return;
-  stopOneMedia(breathMedia.ambient, false);
-}
-
-function resumeBreathAudio(){
-  if(!breathingSoundOn || !breathingSession || breathingSession.paused) return;
-  startAmbientSound();
-
-  const phase = breathingSession.phases[breathingSession.phaseIndex];
-  if(phase){
-    const progress = Math.min(
-      1,
-      Math.max(0, (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds)
-    );
-    syncAmbientToBreath(phase.key, progress);
-  }
-}
-
-function rebuildBreathAudio(){
-  if(!breathingSoundOn) return;
-  stopAmbientSound();
-  startAmbientSound();
-
-  if(breathingSession){
-    const phase = breathingSession.phases[breathingSession.phaseIndex];
-    if(phase) syncAmbientToBreath(phase.key, 0);
-  }
-}
-
-function toggleBreathingSound(){
-  breathingSoundOn = !breathingSoundOn;
-  updateBreathingSoundButton();
-
-  if(breathingSoundOn){
-    rebuildBreathAudio();
-    if(breathingSession){
-      playPhaseCue(breathingSession.phases[breathingSession.phaseIndex].key);
-    }
-  }else{
-    stopAmbientSound();
-  }
-}
-
-function stopBreathingEngine(){
-  if(breathAnimationFrame){
-    cancelAnimationFrame(breathAnimationFrame);
-    breathAnimationFrame = null;
-  }
-
-  stopAmbientSound();
-  stopGuidedBreathAudio();
-
-  if(breathMedia){
-    stopOneMedia(breathMedia.inhale);
-    stopOneMedia(breathMedia.exhale);
-    stopOneMedia(breathMedia.hold);
-  }
-
-  releaseWakeLock();
-  breathingSession = null;
 }
 
 
