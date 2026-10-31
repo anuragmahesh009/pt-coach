@@ -512,6 +512,13 @@
       <div class="breath-phase" id="breathPhase">Ready</div>
       <div class="breath-count" id="breathCount"></div>
       <div class="breath-pattern" id="breathPattern"></div>
+      <div id="breathStartWrap" style="display:none; margin-top:20px;">
+        <div class="breath-btn active"
+             style="display:inline-flex; padding:14px 24px; font-size:18px;"
+             onclick="startBreathingAfterIntro()">
+          Start Breathing
+        </div>
+      </div>
     </div>
     <div class="breath-bottom">
       <div class="breath-controls">
@@ -565,7 +572,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v35';
+const APP_VERSION = 'v36';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -914,10 +921,11 @@ let breathingSoundOn = true;
 // after the intro has fully finished.
 const BREATH_AMBIENT_AUDIO = 'breath-ocean-loop.mp3';
 const BREATH_CUES_AUDIO = 'breath-cues.mp3';
-const CUE_INHALE_OFFSET = 0.00;
-const CUE_EXHALE_OFFSET = 1.00;
-const CUE_HOLD_OFFSET = 2.00;
+const CUE_INHALE_OFFSET = 0.0;
+const CUE_EXHALE_OFFSET = 1.2;
+const CUE_HOLD_OFFSET = 2.4;
 let breathMedia = null;
+let pendingBreathingStart = null;
 let breathCueMuteTimer = null;
 
 // Shared natural-voice guidance for all breathing routines.
@@ -1130,7 +1138,7 @@ function createBreathMedia(){
   cue.playsInline = true;
 
   ambient.loop = true;
-  cue.loop = true;
+  cue.loop = false;
 
   voice.volume = 1.0;
   ambient.volume = 0.20;
@@ -1144,38 +1152,16 @@ function createBreathMedia(){
   return breathMedia;
 }
 
-function startBreathMediaFromGesture(){
-  const m = createBreathMedia();
-
-  // Start both future players under the user's direct tap, but use the
-  // element-level muted flag (not merely low volume) so nothing can leak
-  // into the intro on iPhone.
-  try{
-    m.ambient.pause();
-    m.ambient.currentTime = 0;
-    m.ambient.volume = 0.20;
-    m.ambient.muted = true;
-    const p = m.ambient.play();
-    if(p && typeof p.catch === 'function') p.catch(()=>{});
-  }catch(e){}
-
-  try{
-    m.cue.pause();
-    m.cue.currentTime = 2.70; // silence near the end of the cue track
-    m.cue.volume = 0.92;
-    m.cue.muted = true;
-    const p = m.cue.play();
-    if(p && typeof p.catch === 'function') p.catch(()=>{});
-  }catch(e){}
-}
-
 function stopBreathCue(){
   if(breathCueMuteTimer){
     clearTimeout(breathCueMuteTimer);
     breathCueMuteTimer = null;
   }
   if(breathMedia && breathMedia.cue){
-    try{ breathMedia.cue.muted = true; }catch(e){}
+    try{
+      breathMedia.cue.pause();
+      breathMedia.cue.muted = true;
+    }catch(e){}
   }
 }
 
@@ -1184,6 +1170,11 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   if(!routine) return;
 
   if(window.speechSynthesis) window.speechSynthesis.cancel();
+
+  ++breathingFlowToken;
+  pendingBreathingStart = null;
+  hideBreathStartButton();
+
   stopBreathCue();
   stopGuidedBreathAudio();
   stopAmbientSound();
@@ -1195,6 +1186,7 @@ function startBreathingResolved(routineIdx, routineOverride=null){
 
   breathingSoundOn = cfg.music !== 'none';
   breathingSession = null;
+  pendingBreathingStart = { cfg, phases };
 
   document.getElementById('breathTitle').textContent = routine.name || 'Breathing';
   document.getElementById('breathPattern').textContent = breathingPatternText(cfg);
@@ -1210,18 +1202,32 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   goTo('breathing');
   acquireWakeLock();
 
-  // Authorize ocean + cue media now, but keep both absolutely muted.
-  startBreathMediaFromGesture();
+  // IMPORTANT: during the intro, absolutely no ocean or cue media is started.
+  // This avoids iOS Safari leaking/pre-playing future audio.
+  createBreathMedia();
 
-  const token = ++breathingFlowToken;
-  let transitioned = false;
-  const continueToBreathing = ()=>{
-    if(transitioned || token !== breathingFlowToken) return;
-    transitioned = true;
-    beginBreathingEngine(cfg, phases);
+  const token = breathingFlowToken;
+  const introFinished = ()=>{
+    if(token !== breathingFlowToken || !pendingBreathingStart) return;
+    document.getElementById('breathTimer').textContent = 'Ready';
+    document.getElementById('breathPhase').textContent = 'READY';
+    document.getElementById('breathCount').textContent = '';
+    showBreathStartButton();
   };
 
-  playGuidedBreathAudio(BREATH_INTRO_AUDIO, continueToBreathing, continueToBreathing);
+  playGuidedBreathAudio(BREATH_INTRO_AUDIO, introFinished, introFinished);
+}
+
+function startBreathingAfterIntro(){
+  if(!pendingBreathingStart) return;
+
+  const {cfg, phases} = pendingBreathingStart;
+  pendingBreathingStart = null;
+  hideBreathStartButton();
+
+  // This function is called directly from the user's tap.
+  // Start both media elements NOW, under an explicit user gesture.
+  beginBreathingEngine(cfg, phases);
 }
 
 function beginBreathingEngine(cfg, phases){
@@ -1246,9 +1252,22 @@ function beginBreathingEngine(cfg, phases){
 
   if(breathingSoundOn){
     const m = createBreathMedia();
-    try{ m.ambient.muted = false; }catch(e){}
-    startAmbientSound();
+
+    // Start Ocean Swell from this direct tap.
+    try{
+      m.ambient.pause();
+      m.ambient.currentTime = 0;
+      m.ambient.muted = false;
+      m.ambient.volume = 0.20;
+      const ambientPromise = m.ambient.play();
+      if(ambientPromise && typeof ambientPromise.catch === 'function'){
+        ambientPromise.catch(()=>{});
+      }
+    }catch(e){}
+
     syncAmbientToBreath(phases[0].key, 0);
+
+    // First inhale cue also starts from the same direct tap.
     playPhaseCue(phases[0].key);
   }
 
@@ -1433,11 +1452,16 @@ function finishBreathing(){
 
 function endBreathing(){
   ++breathingFlowToken;
+  pendingBreathingStart = null;
+  hideBreathStartButton();
   stopBreathingEngine();
   goTo('home');
 }
 
 function stopBreathingEngine(){
+  pendingBreathingStart = null;
+  hideBreathStartButton();
+
   if(breathAnimationFrame){
     cancelAnimationFrame(breathAnimationFrame);
     breathAnimationFrame = null;
@@ -1448,7 +1472,7 @@ function stopBreathingEngine(){
   stopGuidedBreathAudio();
 
   if(breathMedia){
-    try{ breathMedia.cue.muted = true; breathMedia.cue.pause(); breathMedia.cue.currentTime = 0; breathMedia.cue.volume = 0.92; }catch(e){}
+    try{ breathMedia.cue.pause(); breathMedia.cue.muted = true; breathMedia.cue.currentTime = 0; breathMedia.cue.volume = 0.92; }catch(e){}
   }
 
   releaseWakeLock();
@@ -1653,15 +1677,16 @@ function playPhaseCue(phaseKey){
     m.cue.volume = 0.92;
     m.cue.muted = false;
 
-    if(m.cue.paused){
-      const p = m.cue.play();
-      if(p && typeof p.catch === 'function') p.catch(()=>{});
-    }
+    const p = m.cue.play();
+    if(p && typeof p.catch === 'function') p.catch(()=>{});
 
     breathCueMuteTimer = setTimeout(()=>{
-      try{ m.cue.muted = true; }catch(e){}
+      try{
+        m.cue.pause();
+        m.cue.muted = true;
+      }catch(e){}
       breathCueMuteTimer = null;
-    }, 500);
+    }, 650);
   }catch(e){}
 }
 
