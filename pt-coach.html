@@ -572,7 +572,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v36';
+const APP_VERSION = 'v37';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -1163,6 +1163,16 @@ function stopBreathCue(){
       breathMedia.cue.muted = true;
     }catch(e){}
   }
+}
+
+function hideBreathStartButton(){
+  const wrap = document.getElementById('breathStartWrap');
+  if(wrap) wrap.style.display = 'none';
+}
+
+function showBreathStartButton(){
+  const wrap = document.getElementById('breathStartWrap');
+  if(wrap) wrap.style.display = 'block';
 }
 
 function startBreathingResolved(routineIdx, routineOverride=null){
