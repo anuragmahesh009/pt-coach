@@ -565,7 +565,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v29';
+const APP_VERSION = 'v30';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -911,7 +911,7 @@ let breathingSoundOn = true;
 // Shared natural-voice guidance for all breathing routines.
 const BREATH_INTRO_AUDIO = 'breath-intro.mp3';
 const BREATH_OUTRO_AUDIO = 'breath-outro.mp3';
-let guidedBreathAudio = null;
+let guidedBreathIntroBuffer = null;
 let guidedBreathOutroBuffer = null;
 let guidedBreathBufferSource = null;
 let breathingFlowToken = 0;
@@ -1133,23 +1133,33 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   goTo('breathing');
   acquireWakeLock();
 
-  // Prime Web Audio during the user's tap. A near-silent keep-alive node
-  // prevents iOS Safari from deciding the Web Audio context is idle while
-  // the spoken intro is playing.
+  // Everything in a breathing routine now uses the SAME Web Audio context:
+  // intro voice, Ocean Swell, phase beeps, and outro voice. This avoids the
+  // flaky iPhone handoff between HTMLAudioElement and Web Audio.
   ensureBreathAudio();
   startBreathAudioKeepAlive();
 
-  // iOS can block a NEW HTMLAudioElement from autoplaying several minutes
-  // later at the end of the session. Preload/decode the outro into this
-  // already-unlocked AudioContext so it can play reliably when the routine ends.
-  preloadGuidedBreathOutro();
-
   const token = ++breathingFlowToken;
-  playGuidedBreathAudio(BREATH_INTRO_AUDIO, ()=>{
+
+  preloadGuidedBreathBuffers().then(async ()=>{
     if(token !== breathingFlowToken) return;
-    beginBreathingEngine(cfg, phases);
-  }, ()=>{
-    // If the clip cannot be loaded, continue with the breathing routine.
+
+    const audioReady = await ensureBreathAudioRunning();
+    if(token !== breathingFlowToken) return;
+
+    if(audioReady && guidedBreathIntroBuffer){
+      playGuidedBreathBuffer(guidedBreathIntroBuffer, ()=>{
+        if(token !== breathingFlowToken) return;
+        beginBreathingEngine(cfg, phases);
+      }, ()=>{
+        if(token !== breathingFlowToken) return;
+        beginBreathingEngine(cfg, phases);
+      });
+    }else{
+      // Never block the routine if the voice asset cannot be decoded.
+      beginBreathingEngine(cfg, phases);
+    }
+  }).catch(()=>{
     if(token !== breathingFlowToken) return;
     beginBreathingEngine(cfg, phases);
   });
@@ -1197,73 +1207,56 @@ async function beginBreathingEngine(cfg, phases){
   }
 }
 
-function playGuidedBreathAudio(src, onEnded, onError){
-  stopGuidedBreathAudio();
+async function loadGuidedBreathBuffer(src){
+  ensureBreathAudio();
+  if(!breathAudioContext) return null;
+
+  const response = await fetch(src, {cache:'force-cache'});
+  if(!response.ok) throw new Error(`Audio HTTP ${response.status}: ${src}`);
+  const bytes = await response.arrayBuffer();
+  return await breathAudioContext.decodeAudioData(bytes.slice(0));
+}
+
+async function preloadGuidedBreathBuffers(){
+  ensureBreathAudio();
+  if(!breathAudioContext) return;
 
   try{
-    const audio = new Audio(src);
-    guidedBreathAudio = audio;
-    audio.preload = 'auto';
+    const jobs = [];
 
-    const cleanup = ()=>{
-      if(guidedBreathAudio === audio) guidedBreathAudio = null;
-    };
-
-    audio.onended = ()=>{
-      cleanup();
-      if(typeof onEnded === 'function') onEnded();
-    };
-
-    audio.onerror = ()=>{
-      cleanup();
-      if(typeof onError === 'function') onError();
-    };
-
-    const p = audio.play();
-    if(p && typeof p.catch === 'function'){
-      p.catch(()=>{
-        cleanup();
-        if(typeof onError === 'function') onError();
-      });
+    if(!guidedBreathIntroBuffer){
+      jobs.push(
+        loadGuidedBreathBuffer(BREATH_INTRO_AUDIO)
+          .then(buffer => { guidedBreathIntroBuffer = buffer; })
+      );
     }
+
+    if(!guidedBreathOutroBuffer){
+      jobs.push(
+        loadGuidedBreathBuffer(BREATH_OUTRO_AUDIO)
+          .then(buffer => { guidedBreathOutroBuffer = buffer; })
+      );
+    }
+
+    if(jobs.length) await Promise.all(jobs);
   }catch(e){
+    console.warn('Could not preload guided breathing audio:', e);
+  }
+}
+
+function playGuidedBreathBuffer(buffer, onEnded, onError){
+  ensureBreathAudio();
+  if(!breathAudioContext || !buffer){
     if(typeof onError === 'function') onError();
-  }
-}
-
-async function preloadGuidedBreathOutro(){
-  ensureBreathAudio();
-  if(!breathAudioContext || guidedBreathOutroBuffer) return;
-
-  try{
-    const response = await fetch(BREATH_OUTRO_AUDIO, {cache:'force-cache'});
-    if(!response.ok) throw new Error(`Outro HTTP ${response.status}`);
-    const bytes = await response.arrayBuffer();
-    guidedBreathOutroBuffer = await breathAudioContext.decodeAudioData(bytes.slice(0));
-  }catch(e){
-    console.warn('Could not preload breathing outro:', e);
-    guidedBreathOutroBuffer = null;
-  }
-}
-
-function playGuidedBreathOutro(onEnded, onError){
-  ensureBreathAudio();
-  if(!breathAudioContext || !guidedBreathOutroBuffer){
-    // Safe fallback for non-iOS browsers or if decoding failed.
-    playGuidedBreathAudio(BREATH_OUTRO_AUDIO, onEnded, onError);
     return;
   }
 
   try{
-    if(guidedBreathBufferSource){
-      try{ guidedBreathBufferSource.stop(); }catch(e){}
-      try{ guidedBreathBufferSource.disconnect(); }catch(e){}
-      guidedBreathBufferSource = null;
-    }
+    stopGuidedBreathAudio();
 
     const source = breathAudioContext.createBufferSource();
     const gain = breathAudioContext.createGain();
-    source.buffer = guidedBreathOutroBuffer;
+    source.buffer = buffer;
     gain.gain.value = 1.0;
     source.connect(gain);
     gain.connect(breathAudioContext.destination);
@@ -1276,42 +1269,28 @@ function playGuidedBreathOutro(onEnded, onError){
       if(typeof onEnded === 'function') onEnded();
     };
 
-    const startSource = ()=>{
-      try{
-        source.start();
-      }catch(e){
-        if(typeof onError === 'function') onError();
-      }
-    };
-
-    if(breathAudioContext.state === 'suspended'){
-      const p = breathAudioContext.resume();
-      if(p && typeof p.then === 'function'){
-        p.then(startSource).catch(()=>{
-          if(typeof onError === 'function') onError();
-        });
-      }else{
-        startSource();
-      }
-    }else{
-      startSource();
-    }
+    source.start();
   }catch(e){
-    console.warn('Could not play breathing outro:', e);
+    console.warn('Could not play guided breathing audio:', e);
     if(typeof onError === 'function') onError();
   }
 }
 
-function stopGuidedBreathAudio(){
-  if(guidedBreathAudio){
-    try{
-      guidedBreathAudio.pause();
-      guidedBreathAudio.currentTime = 0;
-    }catch(e){}
-    guidedBreathAudio = null;
-  }
+function playGuidedBreathOutro(onEnded, onError){
+  ensureBreathAudioRunning().then(running=>{
+    if(!running || !guidedBreathOutroBuffer){
+      if(typeof onError === 'function') onError();
+      return;
+    }
+    playGuidedBreathBuffer(guidedBreathOutroBuffer, onEnded, onError);
+  }).catch(()=>{
+    if(typeof onError === 'function') onError();
+  });
+}
 
+function stopGuidedBreathAudio(){
   if(guidedBreathBufferSource){
+    try{ guidedBreathBufferSource.onended = null; }catch(e){}
     try{ guidedBreathBufferSource.stop(); }catch(e){}
     try{ guidedBreathBufferSource.disconnect(); }catch(e){}
     guidedBreathBufferSource = null;
