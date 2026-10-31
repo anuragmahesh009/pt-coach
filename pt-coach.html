@@ -565,7 +565,7 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v33';
+const APP_VERSION = 'v34';
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -908,15 +908,17 @@ let ambientNodes = [];
 let ambientMasterGain = null;
 let breathingSoundOn = true;
 
-// v31 breathing audio: browser-managed media playback only.
-// This avoids iPhone/Safari Web Audio suspension/resume flakiness.
+// v34 breathing audio uses three persistent browser-managed media players:
+// one voice player, one Ocean Swell player, and one always-alive cue player.
+// This avoids both iOS Web Audio handoff failures and the multi-player priming
+// race that caused v33 intro/cue overlap.
 const BREATH_AMBIENT_AUDIO = 'breath-ocean-loop.mp3';
-const BREATH_BEEP_INHALE_AUDIO = 'breath-beep-inhale.mp3';
-const BREATH_BEEP_EXHALE_AUDIO = 'breath-beep-exhale.mp3';
-const BREATH_BEEP_HOLD_AUDIO = 'breath-beep-hold.mp3';
-
+const BREATH_CUES_AUDIO = 'breath-cues.mp3';
+const CUE_INHALE_OFFSET = 0.00;
+const CUE_EXHALE_OFFSET = 1.00;
+const CUE_HOLD_OFFSET = 2.00;
 let breathMedia = null;
-
+let breathCueMuteTimer = null;
 
 // Shared natural-voice guidance for all breathing routines.
 const BREATH_INTRO_AUDIO = 'breath-intro.mp3';
@@ -1113,6 +1115,62 @@ function confirmBreathSetup(){
   startBreathingResolved(idx, resolved);
 }
 
+function createBreathMedia(){
+  if(breathMedia) return breathMedia;
+
+  const voice = new Audio(BREATH_INTRO_AUDIO);
+  const ambient = new Audio(BREATH_AMBIENT_AUDIO);
+  const cue = new Audio(BREATH_CUES_AUDIO);
+
+  voice.preload = 'auto';
+  ambient.preload = 'auto';
+  cue.preload = 'auto';
+  voice.playsInline = true;
+  ambient.playsInline = true;
+  cue.playsInline = true;
+
+  ambient.loop = true;
+  cue.loop = true;
+
+  voice.volume = 1.0;
+  ambient.volume = 0.005;
+  cue.volume = 0;
+
+  breathMedia = { voice, ambient, cue };
+  return breathMedia;
+}
+
+function startBreathMediaFromGesture(){
+  const m = createBreathMedia();
+
+  // Start the two players that must remain available later while we are still
+  // inside the user's tap. They continue running; nothing is repeatedly
+  // started/stopped behind the intro.
+  try{
+    m.ambient.currentTime = 0;
+    m.ambient.volume = 0.005; // effectively inaudible under the intro
+    const p = m.ambient.play();
+    if(p && typeof p.catch === 'function') p.catch(()=>{});
+  }catch(e){}
+
+  try{
+    m.cue.currentTime = 2.65; // silent part of the cue track
+    m.cue.volume = 0;
+    const p = m.cue.play();
+    if(p && typeof p.catch === 'function') p.catch(()=>{});
+  }catch(e){}
+}
+
+function stopBreathCue(){
+  if(breathCueMuteTimer){
+    clearTimeout(breathCueMuteTimer);
+    breathCueMuteTimer = null;
+  }
+  if(breathMedia && breathMedia.cue){
+    try{ breathMedia.cue.volume = 0; }catch(e){}
+  }
+}
+
 function startBreathingResolved(routineIdx, routineOverride=null){
   const routine = routineOverride || DATA.routines[routineIdx];
   if(!routine) return;
@@ -1143,33 +1201,21 @@ function startBreathingResolved(routineIdx, routineOverride=null){
   goTo('breathing');
   acquireWakeLock();
 
-  // Prime Web Audio during the user's tap. A near-silent keep-alive node
-  // prevents iOS Safari from deciding the Web Audio context is idle while
-  // the spoken intro is playing.
-  ensureBreathAudio();
-  startBreathAudioKeepAlive();
-
-  // iOS can block a NEW HTMLAudioElement from autoplaying several minutes
-  // later at the end of the session. Preload/decode the outro into this
-  // already-unlocked AudioContext so it can play reliably when the routine ends.
-  preloadGuidedBreathOutro();
+  // Unlock/keep alive ambient + cue playback from the same direct tap that
+  // starts the intro. No fake audible cue files are played during the intro.
+  startBreathMediaFromGesture();
 
   const token = ++breathingFlowToken;
   playGuidedBreathAudio(BREATH_INTRO_AUDIO, ()=>{
     if(token !== breathingFlowToken) return;
     beginBreathingEngine(cfg, phases);
   }, ()=>{
-    // If the clip cannot be loaded, continue with the breathing routine.
     if(token !== breathingFlowToken) return;
     beginBreathingEngine(cfg, phases);
   });
 }
 
-async function beginBreathingEngine(cfg, phases){
-  // Do not begin the timer until Web Audio has actually resumed. This removes
-  // the intermittent iPhone race where the visuals started but swell/beeps did not.
-  const audioReady = await ensureBreathAudioRunning();
-
+function beginBreathingEngine(cfg, phases){
   const now = performance.now();
   breathingSession = {
     ...cfg,
@@ -1189,50 +1235,39 @@ async function beginBreathingEngine(cfg, phases){
   document.getElementById('breathCount').textContent = '1';
   document.getElementById('breathPauseBtn').textContent = 'Pause';
 
-  if(breathingSoundOn && audioReady){
-    // Always rebuild the ambient graph at the intro->breathing transition.
-    // This avoids stale nodes making the app think sound exists when it does not.
-    stopAmbientSound();
+  if(breathingSoundOn){
     startAmbientSound();
     syncAmbientToBreath(phases[0].key, 0);
     playPhaseCue(phases[0].key);
   }
 
-  stopBreathAudioKeepAlive();
   runBreathingFrame();
-
-  // If iOS still delayed Web Audio, keep trying briefly while the routine runs.
-  if(breathingSoundOn && !audioReady){
-    recoverBreathAudioDuringSession();
-  }
 }
 
 function playGuidedBreathAudio(src, onEnded, onError){
-  stopGuidedBreathAudio();
+  const m = createBreathMedia();
+  const audio = m.voice;
 
   try{
-    const audio = new Audio(src);
-    guidedBreathAudio = audio;
-    audio.preload = 'auto';
-
-    const cleanup = ()=>{
-      if(guidedBreathAudio === audio) guidedBreathAudio = null;
-    };
+    audio.pause();
+    audio.onended = null;
+    audio.onerror = null;
+    audio.src = src;
+    audio.currentTime = 0;
+    audio.volume = 1.0;
 
     audio.onended = ()=>{
-      cleanup();
+      audio.onended = null;
       if(typeof onEnded === 'function') onEnded();
     };
-
     audio.onerror = ()=>{
-      cleanup();
+      audio.onerror = null;
       if(typeof onError === 'function') onError();
     };
 
     const p = audio.play();
     if(p && typeof p.catch === 'function'){
       p.catch(()=>{
-        cleanup();
         if(typeof onError === 'function') onError();
       });
     }
@@ -1242,90 +1277,25 @@ function playGuidedBreathAudio(src, onEnded, onError){
 }
 
 async function preloadGuidedBreathOutro(){
-  ensureBreathAudio();
-  if(!breathAudioContext || guidedBreathOutroBuffer) return;
-
-  try{
-    const response = await fetch(BREATH_OUTRO_AUDIO, {cache:'force-cache'});
-    if(!response.ok) throw new Error(`Outro HTTP ${response.status}`);
-    const bytes = await response.arrayBuffer();
-    guidedBreathOutroBuffer = await breathAudioContext.decodeAudioData(bytes.slice(0));
-  }catch(e){
-    console.warn('Could not preload breathing outro:', e);
-    guidedBreathOutroBuffer = null;
-  }
+  // v34 reuses the same already-authorized voice element for intro and outro.
+  // No separate player or Web Audio buffer is required.
+  createBreathMedia();
 }
 
 function playGuidedBreathOutro(onEnded, onError){
-  ensureBreathAudio();
-  if(!breathAudioContext || !guidedBreathOutroBuffer){
-    // Safe fallback for non-iOS browsers or if decoding failed.
-    playGuidedBreathAudio(BREATH_OUTRO_AUDIO, onEnded, onError);
-    return;
-  }
-
-  try{
-    if(guidedBreathBufferSource){
-      try{ guidedBreathBufferSource.stop(); }catch(e){}
-      try{ guidedBreathBufferSource.disconnect(); }catch(e){}
-      guidedBreathBufferSource = null;
-    }
-
-    const source = breathAudioContext.createBufferSource();
-    const gain = breathAudioContext.createGain();
-    source.buffer = guidedBreathOutroBuffer;
-    gain.gain.value = 1.0;
-    source.connect(gain);
-    gain.connect(breathAudioContext.destination);
-    guidedBreathBufferSource = source;
-
-    source.onended = ()=>{
-      try{ source.disconnect(); }catch(e){}
-      try{ gain.disconnect(); }catch(e){}
-      if(guidedBreathBufferSource === source) guidedBreathBufferSource = null;
-      if(typeof onEnded === 'function') onEnded();
-    };
-
-    const startSource = ()=>{
-      try{
-        source.start();
-      }catch(e){
-        if(typeof onError === 'function') onError();
-      }
-    };
-
-    if(breathAudioContext.state === 'suspended'){
-      const p = breathAudioContext.resume();
-      if(p && typeof p.then === 'function'){
-        p.then(startSource).catch(()=>{
-          if(typeof onError === 'function') onError();
-        });
-      }else{
-        startSource();
-      }
-    }else{
-      startSource();
-    }
-  }catch(e){
-    console.warn('Could not play breathing outro:', e);
-    if(typeof onError === 'function') onError();
-  }
+  stopBreathCue();
+  stopAmbientSound();
+  playGuidedBreathAudio(BREATH_OUTRO_AUDIO, onEnded, onError);
 }
 
 function stopGuidedBreathAudio(){
-  if(guidedBreathAudio){
-    try{
-      guidedBreathAudio.pause();
-      guidedBreathAudio.currentTime = 0;
-    }catch(e){}
-    guidedBreathAudio = null;
-  }
-
-  if(guidedBreathBufferSource){
-    try{ guidedBreathBufferSource.stop(); }catch(e){}
-    try{ guidedBreathBufferSource.disconnect(); }catch(e){}
-    guidedBreathBufferSource = null;
-  }
+  if(!breathMedia) return;
+  try{
+    breathMedia.voice.pause();
+    breathMedia.voice.currentTime = 0;
+    breathMedia.voice.onended = null;
+    breathMedia.voice.onerror = null;
+  }catch(e){}
 }
 
 function breathingPatternText(cfg){
@@ -1460,9 +1430,15 @@ function stopBreathingEngine(){
     cancelAnimationFrame(breathAnimationFrame);
     breathAnimationFrame = null;
   }
+
+  stopBreathCue();
   stopAmbientSound();
-  stopBreathAudioKeepAlive();
   stopGuidedBreathAudio();
+
+  if(breathMedia){
+    try{ breathMedia.cue.pause(); breathMedia.cue.currentTime = 0; breathMedia.cue.volume = 0; }catch(e){}
+  }
+
   releaseWakeLock();
   breathingSession = null;
 }
@@ -1473,8 +1449,7 @@ function ensureBreathAudio(){
       breathAudioContext = null;
       ambientNodes = [];
       ambientMasterGain = null;
-      stopBreathAudioKeepAlive();
-    }
+        }
     if(!breathAudioContext){
       const Ctx = window.AudioContext || window.webkitAudioContext;
       if(Ctx) breathAudioContext = new Ctx();
@@ -1580,383 +1555,8 @@ function createLoopingNoiseBuffer(seconds=24){
 }
 
 function startAmbientSound(){
-  ensureBreathAudio();
-  if(!breathAudioContext || ambientNodes.length) return;
-
-  try{
-    // Ocean Swell, but synced to the current breathing phase instead of
-    // running on its own independent cycle. This makes the background
-    // rise during inhale and soften during exhale.
-    const noise = breathAudioContext.createBufferSource();
-    const noiseBuffer = createLoopingNoiseBuffer();
-    if(!noiseBuffer) return;
-    noise.buffer = noiseBuffer;
-    noise.loop = true;
-
-    const highpass = breathAudioContext.createBiquadFilter();
-    highpass.type = 'highpass';
-    highpass.frequency.value = 90;
-    highpass.Q.value = 0.35;
-
-    const lowpass = breathAudioContext.createBiquadFilter();
-    lowpass.type = 'lowpass';
-    lowpass.frequency.value = 950;
-    lowpass.Q.value = 0.45;
-
-    const master = breathAudioContext.createGain();
-    master.gain.value = 0.022;
-    master.connect(breathAudioContext.destination);
-
-    noise.connect(highpass);
-    highpass.connect(lowpass);
-    lowpass.connect(master);
-
-    noise.start();
-
-    ambientMasterGain = master;
-    ambientNodes.push(noise, highpass, lowpass, master);
-  }catch(e){
-    console.warn('Could not start synced Ocean Swell ambient sound:', e);
-    ambientNodes = [];
-    ambientMasterGain = null;
-  }
-}
-
-function syncAmbientToBreath(phaseKey, phaseProgress){
-  if(!breathingSoundOn || !breathAudioContext || !ambientMasterGain) return;
-  try{
-    const eased = easeInOutSine(Math.min(1, Math.max(0, phaseProgress || 0)));
-    const quietLevel = 0.022;
-    const fullLevel = 0.052;
-    let target = quietLevel;
-
-    if(phaseKey === 'inhale'){
-      target = quietLevel + (fullLevel - quietLevel) * eased;
-    }else if(phaseKey === 'holdIn'){
-      target = quietLevel * 0.25;
-    }else if(phaseKey === 'exhale'){
-      target = fullLevel - (fullLevel - quietLevel) * eased;
-    }else if(phaseKey === 'holdOut'){
-      target = quietLevel * 0.25;
-    }
-
-    ambientMasterGain.gain.setTargetAtTime(target, breathAudioContext.currentTime, 0.09);
-  }catch(e){}
-}
-
-function stopAmbientSound(){
-  ambientNodes.forEach(node=>{
-    try{ if(typeof node.stop === 'function') node.stop(); }catch(e){}
-    try{ node.disconnect(); }catch(e){}
-  });
-  ambientNodes = [];
-  ambientMasterGain = null;
-}
-
-function suspendBreathAudio(){
-  try{
-    if(breathAudioContext && breathAudioContext.state === 'running'){
-      breathAudioContext.suspend();
-    }
-  }catch(e){}
-}
-
-function resumeBreathAudio(){
-  ensureBreathAudio();
-  if(!breathAudioContext) return;
-
-  // Safari can report an active setting while the actual audio graph was
-  // lost/suspended in the background. Recreate the ambient layer as needed.
-  const restartAmbient = ()=>{
-    if(breathingSoundOn && breathingSession && !breathingSession.paused && !ambientNodes.length){
-      startAmbientSound();
-      const phase = breathingSession.phases[breathingSession.phaseIndex];
-      if(phase){
-        const progress = Math.min(1, Math.max(0, (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds));
-        syncAmbientToBreath(phase.key, progress);
-      }
-    }
-  };
-
-  if(breathAudioContext.state === 'suspended'){
-    try{
-      const p = breathAudioContext.resume();
-      if(p && typeof p.then === 'function'){
-        p.then(restartAmbient).catch(()=>{});
-      }
-    }catch(e){}
-  }else{
-    restartAmbient();
-  }
-}
-
-function playPhaseCue(phaseKey){
-  if(!breathingSoundOn) return;
-  ensureBreathAudio();
-  if(!breathAudioContext) return;
-  try{
-    const now = breathAudioContext.currentTime;
-    const osc = breathAudioContext.createOscillator();
-    const gain = breathAudioContext.createGain();
-    const freq = phaseKey === 'inhale' ? 523.25 :
-                 phaseKey === 'exhale' ? 392.00 : 329.63;
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(freq, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.exponentialRampToValueAtTime(0.074, now + 0.025);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.38);
-    osc.connect(gain);
-    gain.connect(breathAudioContext.destination);
-    osc.start(now);
-    osc.stop(now + 0.42);
-  }catch(e){}
-}
-
-function rebuildBreathAudio(){
-  // Called from a user tap. Rebuilding the context is a reliable recovery
-  // path on iOS if Safari silently suspended or lost the old audio graph.
-  stopAmbientSound();
-  try{
-    if(breathAudioContext && breathAudioContext.state !== 'closed'){
-      breathAudioContext.close();
-    }
-  }catch(e){}
-  breathAudioContext = null;
-  ensureBreathAudio();
-  if(breathingSoundOn) {
-    startAmbientSound();
-    if(breathingSession){
-      const phase = breathingSession.phases[breathingSession.phaseIndex];
-      if(phase) syncAmbientToBreath(phase.key, 0);
-    }
-  }
-}
-
-function toggleBreathingSound(){
-  breathingSoundOn = !breathingSoundOn;
-  updateBreathingSoundButton();
-  if(breathingSoundOn){
-    rebuildBreathAudio();
-    if(breathingSession) playPhaseCue(breathingSession.phases[breathingSession.phaseIndex].key);
-  }else{
-    stopAmbientSound();
-  }
-}
-
-function updateBreathingSoundButton(){
-  const btn = document.getElementById('breathSoundBtn');
-  if(!btn) return;
-  btn.textContent = breathingSoundOn ? '♫ Ambient On' : '♫ Ambient Off';
-  btn.classList.toggle('active', breathingSoundOn);
-}
-
-
-
-/* ===================== BREATHING AUDIO v31 ===================== */
-/*
-  iPhone reliability strategy:
-  - No AudioContext / Web Audio is used for breathing playback.
-  - Intro, Ocean Swell, cue tones, and outro are ordinary Audio elements.
-  - All elements are primed from the user's Start/Confirm tap.
-  - Ocean volume is modulated in sync with inhale/exhale.
-*/
-
-function createBreathMedia(){
-  if(breathMedia) return breathMedia;
-
-  const make = (src, loop=false)=>{
-    const a = new Audio(src);
-    a.preload = 'auto';
-    a.loop = loop;
-    a.playsInline = true;
-    return a;
-  };
-
-  breathMedia = {
-    intro: make(BREATH_INTRO_AUDIO),
-    ambient: make(BREATH_AMBIENT_AUDIO, true),
-    inhale: make(BREATH_BEEP_INHALE_AUDIO),
-    exhale: make(BREATH_BEEP_EXHALE_AUDIO),
-    hold: make(BREATH_BEEP_HOLD_AUDIO),
-    outro: make(BREATH_OUTRO_AUDIO)
-  };
-
-  breathMedia.intro.volume = 1.0;
-  breathMedia.outro.volume = 1.0;
-  breathMedia.ambient.volume = 0.20;
-  breathMedia.inhale.volume = 0.78;
-  breathMedia.exhale.volume = 0.78;
-  breathMedia.hold.volume = 0.78;
-
-  return breathMedia;
-}
-
-function primeOneBreathMedia(audio){
-  if(!audio) return;
-  try{
-    const oldMuted = audio.muted;
-    const oldVolume = audio.volume;
-    audio.muted = true;
-    audio.volume = 0;
-    audio.currentTime = 0;
-
-    const p = audio.play();
-    if(p && typeof p.then === 'function'){
-      p.then(()=>{
-        try{
-          audio.pause();
-          audio.currentTime = 0;
-          audio.muted = oldMuted;
-          audio.volume = oldVolume;
-        }catch(e){}
-      }).catch(()=>{
-        try{
-          audio.muted = oldMuted;
-          audio.volume = oldVolume;
-        }catch(e){}
-      });
-    }else{
-      audio.pause();
-      audio.currentTime = 0;
-      audio.muted = oldMuted;
-      audio.volume = oldVolume;
-    }
-  }catch(e){}
-}
-
-function primeBreathMedia(){
-  const m = createBreathMedia();
-
-  // Prime every element while still inside the user's Start/Confirm tap.
-  // Intro itself will be started immediately afterward.
-  primeOneBreathMedia(m.ambient);
-  primeOneBreathMedia(m.inhale);
-  primeOneBreathMedia(m.exhale);
-  primeOneBreathMedia(m.hold);
-  primeOneBreathMedia(m.outro);
-}
-
-function stopOneMedia(audio, reset=true){
-  if(!audio) return;
-  try{
-    audio.pause();
-    if(reset) audio.currentTime = 0;
-  }catch(e){}
-}
-
-function stopGuidedBreathAudio(){
-  const m = createBreathMedia();
-  stopOneMedia(m.intro);
-  stopOneMedia(m.outro);
-}
-
-function playGuidedBreathAudio(src, onEnded, onError){
-  const m = createBreathMedia();
-  const audio = src === BREATH_OUTRO_AUDIO ? m.outro : m.intro;
-
-  stopOneMedia(audio);
-  audio.onended = ()=>{
-    audio.onended = null;
-    if(typeof onEnded === 'function') onEnded();
-  };
-  audio.onerror = ()=>{
-    audio.onerror = null;
-    if(typeof onError === 'function') onError();
-  };
-
-  try{
-    const p = audio.play();
-    if(p && typeof p.catch === 'function'){
-      p.catch(()=>{
-        if(typeof onError === 'function') onError();
-      });
-    }
-  }catch(e){
-    if(typeof onError === 'function') onError();
-  }
-}
-
-function playGuidedBreathOutro(onEnded, onError){
-  playGuidedBreathAudio(BREATH_OUTRO_AUDIO, onEnded, onError);
-}
-
-function startBreathingResolved(routineIdx, routineOverride=null){
-  const routine = routineOverride || DATA.routines[routineIdx];
-  if(!routine) return;
-
-  if(window.speechSynthesis) window.speechSynthesis.cancel();
-  stopGuidedBreathAudio();
-  stopAmbientSound();
-  releaseWakeLock();
-
-  const cfg = normalizeBreathingRoutine(routine);
-  const phases = buildBreathPhases(cfg);
-  if(phases.length === 0) return;
-
-  breathingSoundOn = cfg.music !== 'none';
-  breathingSession = null;
-
-  document.getElementById('breathTitle').textContent = routine.name || 'Breathing';
-  document.getElementById('breathPattern').textContent = breathingPatternText(cfg);
-  document.getElementById('breathTimer').textContent = 'Getting settled';
-  document.getElementById('breathPhase').textContent = 'GET COMFORTABLE';
-  document.getElementById('breathCount').textContent = '';
-  document.getElementById('breathPauseBtn').textContent = 'Pause';
-  updateBreathingSoundButton();
-
-  const orb = document.getElementById('breathOrb');
-  if(orb) orb.style.transform = 'scale(0.55)';
-
-  goTo('breathing');
-  acquireWakeLock();
-
-  // This is the important iPhone step: prime all future breathing media
-  // while we are still handling the user's direct tap.
-  primeBreathMedia();
-
-  const token = ++breathingFlowToken;
-  playGuidedBreathAudio(BREATH_INTRO_AUDIO, ()=>{
-    if(token !== breathingFlowToken) return;
-    beginBreathingEngine(cfg, phases);
-  }, ()=>{
-    if(token !== breathingFlowToken) return;
-    beginBreathingEngine(cfg, phases);
-  });
-}
-
-function beginBreathingEngine(cfg, phases){
-  const now = performance.now();
-  breathingSession = {
-    ...cfg,
-    phases,
-    phaseIndex:0,
-    phaseStartedAt:now,
-    startedAt:now,
-    paused:false,
-    pausedAt:null,
-    totalPausedMs:0,
-    lastSecond:null,
-    lastPhaseKey:null
-  };
-
-  document.getElementById('breathTimer').textContent = `${formatBreathTime(cfg.duration)} remaining`;
-  document.getElementById('breathPhase').textContent = phases[0].label;
-  document.getElementById('breathCount').textContent = '1';
-  document.getElementById('breathPauseBtn').textContent = 'Pause';
-
-  if(breathingSoundOn){
-    startAmbientSound();
-    syncAmbientToBreath(phases[0].key, 0);
-    playPhaseCue(phases[0].key);
-  }
-
-  runBreathingFrame();
-}
-
-function startAmbientSound(){
   if(!breathingSoundOn) return;
   const m = createBreathMedia();
-
   try{
     if(m.ambient.paused){
       const p = m.ambient.play();
@@ -1965,18 +1565,10 @@ function startAmbientSound(){
   }catch(e){}
 }
 
-function stopAmbientSound(){
-  if(!breathMedia) return;
-  stopOneMedia(breathMedia.ambient);
-}
-
 function syncAmbientToBreath(phaseKey, phaseProgress){
   if(!breathingSoundOn || !breathMedia) return;
 
   const eased = easeInOutSine(Math.min(1, Math.max(0, phaseProgress || 0)));
-
-  // Same relative behavior as the previous Ocean Swell:
-  // build on inhale, soften on exhale, and stay very quiet on holds.
   const quietLevel = 0.20;
   const fullLevel = 0.52;
   const holdLevel = quietLevel * 0.25;
@@ -1990,51 +1582,101 @@ function syncAmbientToBreath(phaseKey, phaseProgress){
     target = fullLevel - (fullLevel - quietLevel) * eased;
   }
 
+  try{ breathMedia.ambient.volume = Math.min(1, Math.max(0, target)); }catch(e){}
+}
+
+function stopAmbientSound(){
+  if(!breathMedia) return;
   try{
-    breathMedia.ambient.volume = Math.min(1, Math.max(0, target));
+    breathMedia.ambient.pause();
+    breathMedia.ambient.currentTime = 0;
+    breathMedia.ambient.volume = 0.005;
   }catch(e){}
+}
+
+function suspendBreathAudio(){
+  if(!breathMedia) return;
+  try{ breathMedia.ambient.pause(); }catch(e){}
+  try{ breathMedia.cue.pause(); }catch(e){}
+  stopBreathCue();
+}
+
+function resumeBreathAudio(){
+  if(!breathingSoundOn || !breathingSession || breathingSession.paused) return;
+  const m = createBreathMedia();
+
+  try{
+    if(m.ambient.paused){
+      const p = m.ambient.play();
+      if(p && typeof p.catch === 'function') p.catch(()=>{});
+    }
+  }catch(e){}
+  try{
+    if(m.cue.paused){
+      m.cue.volume = 0;
+      const p = m.cue.play();
+      if(p && typeof p.catch === 'function') p.catch(()=>{});
+    }
+  }catch(e){}
+
+  const phase = breathingSession.phases[breathingSession.phaseIndex];
+  if(phase){
+    const progress = Math.min(1, Math.max(0,
+      (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds
+    ));
+    syncAmbientToBreath(phase.key, progress);
+  }
 }
 
 function playPhaseCue(phaseKey){
   if(!breathingSoundOn) return;
   const m = createBreathMedia();
 
-  const audio =
-    phaseKey === 'inhale' ? m.inhale :
-    phaseKey === 'exhale' ? m.exhale :
-    m.hold;
+  const offset = phaseKey === 'inhale'
+    ? CUE_INHALE_OFFSET
+    : phaseKey === 'exhale'
+      ? CUE_EXHALE_OFFSET
+      : CUE_HOLD_OFFSET;
+
+  stopBreathCue();
 
   try{
-    audio.pause();
-    audio.currentTime = 0;
-    const p = audio.play();
-    if(p && typeof p.catch === 'function') p.catch(()=>{});
+    // The cue player stays alive silently for the entire session. Seeking to
+    // one section gives clearly different inhale/exhale sounds without
+    // starting a new media player at every phase change.
+    m.cue.currentTime = offset;
+    m.cue.volume = 0.92;
+    if(m.cue.paused){
+      const p = m.cue.play();
+      if(p && typeof p.catch === 'function') p.catch(()=>{});
+    }
+
+    breathCueMuteTimer = setTimeout(()=>{
+      try{ m.cue.volume = 0; }catch(e){}
+      breathCueMuteTimer = null;
+    }, 470);
   }catch(e){}
-}
-
-function suspendBreathAudio(){
-  if(!breathMedia) return;
-  stopOneMedia(breathMedia.ambient, false);
-}
-
-function resumeBreathAudio(){
-  if(!breathingSoundOn || !breathingSession || breathingSession.paused) return;
-  startAmbientSound();
-
-  const phase = breathingSession.phases[breathingSession.phaseIndex];
-  if(phase){
-    const progress = Math.min(
-      1,
-      Math.max(0, (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds)
-    );
-    syncAmbientToBreath(phase.key, progress);
-  }
 }
 
 function rebuildBreathAudio(){
   if(!breathingSoundOn) return;
-  stopAmbientSound();
-  startAmbientSound();
+  const m = createBreathMedia();
+
+  try{
+    m.ambient.volume = 0.005;
+    if(m.ambient.paused){
+      const p = m.ambient.play();
+      if(p && typeof p.catch === 'function') p.catch(()=>{});
+    }
+  }catch(e){}
+
+  try{
+    m.cue.volume = 0;
+    if(m.cue.paused){
+      const p = m.cue.play();
+      if(p && typeof p.catch === 'function') p.catch(()=>{});
+    }
+  }catch(e){}
 
   if(breathingSession){
     const phase = breathingSession.phases[breathingSession.phaseIndex];
@@ -2052,27 +1694,16 @@ function toggleBreathingSound(){
       playPhaseCue(breathingSession.phases[breathingSession.phaseIndex].key);
     }
   }else{
+    stopBreathCue();
     stopAmbientSound();
   }
 }
 
-function stopBreathingEngine(){
-  if(breathAnimationFrame){
-    cancelAnimationFrame(breathAnimationFrame);
-    breathAnimationFrame = null;
-  }
-
-  stopAmbientSound();
-  stopGuidedBreathAudio();
-
-  if(breathMedia){
-    stopOneMedia(breathMedia.inhale);
-    stopOneMedia(breathMedia.exhale);
-    stopOneMedia(breathMedia.hold);
-  }
-
-  releaseWakeLock();
-  breathingSession = null;
+function updateBreathingSoundButton(){
+  const btn = document.getElementById('breathSoundBtn');
+  if(!btn) return;
+  btn.textContent = breathingSoundOn ? '♫ Ambient On' : '♫ Ambient Off';
+  btn.classList.toggle('active', breathingSoundOn);
 }
 
 
