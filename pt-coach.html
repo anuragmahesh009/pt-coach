@@ -565,7 +565,19 @@
 /* ===================== VERSION ===================== */
 // Bump this string every time a new version is shipped, so it's easy to
 // confirm laptop and iPhone (or any two devices) are running the same build.
-const APP_VERSION = 'v38';
+const APP_VERSION = 'v39';
+
+// iPhone/Safari: treat Web Audio as media playback so the Ring/Silent switch
+// does not mute the breathing Ocean Swell and phase cues.
+function setPlaybackAudioSession(){
+  try{
+    if(navigator.audioSession){
+      navigator.audioSession.type = 'playback';
+    }
+  }catch(e){
+    console.warn('Could not set playback audio session:', e);
+  }
+}
 
 /* ===================== GLOBAL ERROR DISPLAY ===================== */
 // Shows any uncaught JS error directly on screen as a visible banner.
@@ -736,6 +748,7 @@ function releaseWakeLock(){
 // re-acquire it so the screen still won't lock for the rest of the routine.
 document.addEventListener('visibilitychange', ()=>{
   if(document.visibilityState === 'visible'){
+    setPlaybackAudioSession();
     if((session || breathingSession) && !wakeLock){
       acquireWakeLock();
     }
@@ -987,6 +1000,7 @@ function defaultVariableBreathValue(routine, key){
 }
 
 function startBreathing(routineIdx){
+  setPlaybackAudioSession();
   const routine = DATA.routines[routineIdx];
   if(!routine) return;
 
@@ -1156,10 +1170,9 @@ function startBreathingResolved(routineIdx, routineOverride=null){
 }
 
 async function beginBreathingEngine(cfg, phases){
-  // Repair the original v29 handoff without changing its breathing sounds/timing.
-  // First confirm Web Audio is running, then send a brief sub-audible wake pulse
-  // before starting the original Ocean Swell and first phase cue.
-  const audioReady = await wakeBreathAudioOutput();
+  // Do not begin the timer until Web Audio has actually resumed. This removes
+  // the intermittent iPhone race where the visuals started but swell/beeps did not.
+  const audioReady = await ensureBreathAudioRunning();
 
   const now = performance.now();
   breathingSession = {
@@ -1189,8 +1202,7 @@ async function beginBreathingEngine(cfg, phases){
     playPhaseCue(phases[0].key);
   }
 
-  // Keep the sub-audible route keeper running for the entire breathing
-  // session. It is stopped by stopBreathingEngine() when the routine ends.
+  stopBreathAudioKeepAlive();
   runBreathingFrame();
 
   // If iOS still delayed Web Audio, keep trying briefly while the routine runs.
@@ -1519,12 +1531,10 @@ function startBreathAudioKeepAlive(){
     const osc = breathAudioContext.createOscillator();
     const gain = breathAudioContext.createGain();
 
-    // Keep the Web Audio route genuinely active during the spoken intro.
-    // 18 Hz is sub-audible and poorly reproduced by phone speakers, but unlike
-    // a mathematically silent signal it still gives Safari an active audio graph.
+    // Essentially inaudible, but enough to keep the audio graph active.
     osc.type = 'sine';
-    osc.frequency.value = 18;
-    gain.gain.value = 0.02;
+    osc.frequency.value = 440;
+    gain.gain.value = 0.000001;
 
     osc.connect(gain);
     gain.connect(breathAudioContext.destination);
@@ -1566,34 +1576,6 @@ async function recoverBreathAudioDuringSession(){
     );
     syncAmbientToBreath(phase.key, progress);
   }
-}
-
-
-async function wakeBreathAudioOutput(){
-  const ready = await ensureBreathAudioRunning();
-  if(!ready || !breathAudioContext) return false;
-
-  try{
-    const osc = breathAudioContext.createOscillator();
-    const gain = breathAudioContext.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = 18;
-    gain.gain.setValueAtTime(0.02, breathAudioContext.currentTime);
-    gain.gain.exponentialRampToValueAtTime(
-      0.0001,
-      breathAudioContext.currentTime + 0.18
-    );
-
-    osc.connect(gain);
-    gain.connect(breathAudioContext.destination);
-    osc.start();
-    osc.stop(breathAudioContext.currentTime + 0.20);
-
-    await waitMs(120);
-  }catch(e){}
-
-  return breathAudioContext && breathAudioContext.state === 'running';
 }
 
 function createLoopingNoiseBuffer(seconds=24){
@@ -1695,10 +1677,9 @@ function resumeBreathAudio(){
 
   // Safari can report an active setting while the actual audio graph was
   // lost/suspended in the background. Recreate the ambient layer as needed.
-  const restartAmbient = async ()=>{
-    if(breathingSoundOn && breathingSession && !breathingSession.paused){
-      await wakeBreathAudioOutput();
-      if(!ambientNodes.length) startAmbientSound();
+  const restartAmbient = ()=>{
+    if(breathingSoundOn && breathingSession && !breathingSession.paused && !ambientNodes.length){
+      startAmbientSound();
       const phase = breathingSession.phases[breathingSession.phaseIndex];
       if(phase){
         const progress = Math.min(1, Math.max(0, (performance.now() - breathingSession.phaseStartedAt) / 1000 / phase.seconds));
@@ -1752,7 +1733,6 @@ function rebuildBreathAudio(){
   }catch(e){}
   breathAudioContext = null;
   ensureBreathAudio();
-  startBreathAudioKeepAlive();
   if(breathingSoundOn) {
     startAmbientSound();
     if(breathingSession){
@@ -2039,6 +2019,8 @@ function escapeAttr(str){ return escapeHtml(str); }
 /* ===================== INIT ===================== */
 async function initApp(){
   try{
+    setPlaybackAudioSession();
+
     // Show a lightweight loading state while we fetch pt-coach.yaml.
     const list = document.getElementById('routineList');
     if(list) list.innerHTML = '<div class="empty-state">Loading your routines…</div>';
