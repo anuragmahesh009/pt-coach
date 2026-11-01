@@ -128,6 +128,92 @@ routines:
     - Gently draw the crossed knee toward the opposite shoulder until you feel a stretch in the buttock.
     - Keep your lower back relaxed and avoid twisting your trunk.
     - Repeat on the other side.
+- name: Bhanu - Resistance Training
+  exercises:
+  - name: Penguin Walks with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Stand with your feet about hip-width apart and a resistance band above your knees.
+    - Keep your knees slightly bent, toes pointing forward, and gentle tension on the band.
+    - Step sideways with the leading leg, then bring the trailing leg toward it without letting the band go slack.
+    - Continue for the prescribed steps, then repeat in the opposite direction.
+  - name: Lateral Band Steps in Mini-Squat
+    sets: 2
+    reps: 8
+    steps:
+    - Stand with your feet about hip-width apart and a resistance band above your knees.
+    - Bend your hips and knees into a gentle mini-squat and keep your chest upright.
+    - Take two controlled sideways steps to the left while keeping tension on the band.
+    - Then take two controlled sideways steps to the right.
+    - Keep your knees tracking over your toes and maintain the gentle squat throughout.
+  - name: Supine Single-Leg Raise with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your back with both legs extended and a resistance band above your knees.
+    - Keep both legs straight and gently engage your abdominal muscles.
+    - Raise one leg upward against the resistance of the band while keeping the other leg on the mat.
+    - Lower the leg slowly with control, then repeat with the opposite leg.
+  - name: Lying Down Marches with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your back with your knees bent, feet flat on the floor, and a resistance band above your knees.
+    - Perform a gentle pelvic tilt and engage your abdominal muscles.
+    - Slowly lift one foot off the floor while keeping the knee bent and your trunk still.
+    - Lower with control and alternate sides.
+  - name: Supine 90/90 Alternating Toe Taps with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your back with a resistance band above your knees.
+    - Bring both legs up so your hips and knees are bent to about 90 degrees.
+    - Gently perform a pelvic tilt and engage your abdominal muscles.
+    - Slowly lower one foot to tap the floor while keeping the opposite leg still.
+    - Return to the starting position and alternate sides.
+    - Keep your lower back from arching as you move.
+  - name: Ball Squeeze
+    sets: 2
+    reps: 8
+    hold: 5
+    steps:
+    - Lie on your back with your knees bent and feet flat on the floor, with a soft ball between your knees.
+    - Gently perform a pelvic tilt and keep your lower back supported against the mat.
+    - Squeeze your knees into the ball and hold, then relax.
+  - name: Glute Bridges with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your back with your knees bent, feet flat, and a resistance band above your knees.
+    - Keep gentle outward tension on the band and tighten your abdominal and glute muscles.
+    - Hold 2-pound weights at the crease of your hips.
+    - Lift your hips into a bridge without over-arching your lower back.
+    - Lower slowly and repeat.
+  - name: Side-Lying Hip Abduction with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your side with your hips stacked and the top leg straight.
+    - Place a resistance band above your knees.
+    - Keeping the knee straight and pelvis steady, slowly raise the top leg away from the bottom leg.
+    - Lower with control and repeat on both sides.
+  - name: Clamshell with Band
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your side with your hips and knees bent and a resistance band above your knees.
+    - Keep your feet together and your hips stacked.
+    - Raise the top knee against the resistance without allowing your pelvis to roll backward.
+    - Lower slowly and repeat on both sides.
+  - name: Ardha Shalabhasana
+    sets: 2
+    reps: 8
+    steps:
+    - Lie on your stomach with both legs extended straight behind you.
+    - Keep your pelvis and hips grounded on the mat.
+    - Keeping one leg straight, gently lift it upward without arching excessively through your lower back.
+    - Lower with control and alternate legs.
 - name: Bhanu - Back
   exercises:
   - name: Full Body Stretch
